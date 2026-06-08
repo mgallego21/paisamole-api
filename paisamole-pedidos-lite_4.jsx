@@ -607,6 +607,8 @@ function ImportarOrden({ onPedidoImportado, pdfFile, setPdfFile, pdfStatus, setP
           </div>
         </div>
       )}
+      </div>
+      )}
     </div>
   );
 }
@@ -800,7 +802,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
       )}
 
       {subVista === "pedidos" && (
-      <>
+      <div>
       {/* TABLA */}
       <div style={s.tableWrap}>
         {lista.length === 0 ? (
@@ -897,6 +899,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
           </div>
         </div>
       )}
+      </div>
       )}
     </div>
   );
