@@ -618,8 +618,7 @@ function ImportarOrden({ onPedidoImportado, pdfFile, setPdfFile, pdfStatus, setP
           </div>
         </div>
       )}
-      </>
-      )}
+      </div>
     </div>
   );
 }
@@ -806,14 +805,13 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
         />
       )}
 
-      {subVista === "pedidos" && totalPend > 0 && (
+      {totalPend > 0 && subVista === "pedidos" && (
         <div style={s.alertBanner}>
           ⚠️ Tienes <strong>{totalPend} pedido{totalPend > 1 ? "s" : ""}</strong> pendiente{totalPend > 1 ? "s" : ""} de aprobación
         </div>
       )}
 
-      {subVista === "pedidos" && (
-      <>
+      <div style={{display: subVista === "pedidos" ? "block" : "none"}}>
       {/* TABLA */}
       <div style={s.tableWrap}>
         {lista.length === 0 ? (
@@ -910,8 +908,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
           </div>
         </div>
       )}
-      </>
-      )}
+      </div>
     </div>
   );
 }
