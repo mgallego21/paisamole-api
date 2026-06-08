@@ -645,35 +645,7 @@ async function leerOrdenCompraConIA(file) {
                 },
                 {
                   type: "text",
-                  text: `Eres un asistente de Paisamole SAS, empresa colombiana de guacamole. Analiza esta orden de compra y extrae la información en formato JSON. 
-                  
-Los productos de Paisamole SAS son:
-- Paisamole Picante 200gr
-- Guacamole Paisamole 200gr  
-- Molego 200gr
-- Guacamole Paisamole 400gr
-- Aguacate Chunki 1000gr
-
-Responde SOLO con un JSON válido, sin texto adicional, sin markdown:
-{
-  "razonSocial": "nombre del cliente/empresa que emite la orden",
-  "nit": "NIT o identificación del cliente si aparece",
-  "ciudad": "ciudad del cliente",
-  "direccionEntrega": "dirección de entrega si aparece",
-  "telefono": "teléfono si aparece",
-  "email": "email si aparece",
-  "fechaEntrega": "fecha de entrega requerida en formato YYYY-MM-DD, si no hay pon null",
-  "numerOrden": "número de orden de compra si aparece",
-  "observaciones": "notas u observaciones relevantes",
-  "items": [
-    {
-      "nombreOriginal": "nombre exacto del producto en la orden",
-      "productoId": número del 1 al 5 del producto Paisamole más parecido o null si no coincide,
-      "cantidad": número entero de unidades,
-      "precioUnitario": precio unitario si aparece o null
-    }
-  ]
-}`
+                  text: "Eres un asistente de Paisamole SAS. Analiza esta orden de compra y extrae la información en JSON. Productos: 1=Paisamole Picante 200gr, 2=Guacamole Paisamole 200gr, 3=Molego 200gr, 4=Guacamole Paisamole 400gr, 5=Aguacate Chunki 1000gr. Responde SOLO JSON sin markdown: {razonSocial, nit, ciudad, direccionEntrega, telefono, email, fechaEntrega (YYYY-MM-DD o null), numerOrden, observaciones, items:[{nombreOriginal, productoId (1-5 o null), cantidad, precioUnitario}]}"
                 }
               ]
             }]
