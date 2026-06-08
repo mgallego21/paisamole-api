@@ -618,7 +618,7 @@ function ImportarOrden({ onPedidoImportado, pdfFile, setPdfFile, pdfStatus, setP
           </div>
         </div>
       )}
-      </div>
+      </React.Fragment>
       )}
     </div>
   );
@@ -813,7 +813,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
       )}
 
       {subVista === "pedidos" && (
-      <div>
+      <React.Fragment>
       {/* TABLA */}
       <div style={s.tableWrap}>
         {lista.length === 0 ? (
@@ -910,7 +910,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
           </div>
         </div>
       )}
-      </div>
+      </React.Fragment>
       )}
     </div>
   );
