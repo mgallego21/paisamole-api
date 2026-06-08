@@ -1,1 +1,1134 @@
-file:///Users/mj/Downloads/index.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paisamole SAS — Portal de Pedidos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>*{margin:0;padding:0;box-sizing:border-box}</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+
+// ─── DATOS ────────────────────────────────────────────────────────────────────
+const EMPRESA = {
+  nombre: "Paisamole SAS",
+  nit: "901.472.548-7",
+  ciudad: "Colombia",
+  color: "#3B6E22",
+  colorClaro: "#EEF6E6",
+  colorOscuro: "#1E3D10",
+  acento: "#C8DC2A",
+  acentoOscuro: "#8FA01A",
+};
+
+const PRODUCTOS = [
+  { id: 1, nombre: "Paisamole Picante", presentacion: "200gr", empaque: "Tarrina", precio: 9411, iva: 1788.09, total: 11199.09, entrega: "4 días hábiles", minimo: 18 },
+  { id: 2, nombre: "Guacamole Paisamole", presentacion: "200gr", empaque: "Tarrina", precio: 8800, iva: 1672, total: 10472, entrega: "4 días hábiles", minimo: 18 },
+  { id: 3, nombre: "Molego", presentacion: "200gr", empaque: "Tarrina", precio: 4950, iva: 940.50, total: 5890.50, entrega: "4 días hábiles", minimo: 30 },
+  { id: 4, nombre: "Guacamole Paisamole", presentacion: "400gr", empaque: "Tarrina", precio: 15246, iva: 2896.74, total: 18142.74, entrega: "4 días hábiles", minimo: 12 },
+  { id: 5, nombre: "Aguacate Chunki", presentacion: "1000gr", empaque: "Bolsa", precio: 12500, iva: 2375, total: 14875, entrega: "4 días hábiles", minimo: 12 },
+];
+
+const ESTADOS = [
+  { key: "pendiente", label: "Pendiente aprobación", color: "#F59E0B", bg: "#FEF3C7", icon: "⏳" },
+  { key: "aprobado", label: "Aprobado", color: "#3B82F6", bg: "#DBEAFE", icon: "✅" },
+  { key: "produccion", label: "En producción", color: "#8B5CF6", bg: "#EDE9FE", icon: "🏭" },
+  { key: "listo", label: "Listo para despacho", color: "#10B981", bg: "#D1FAE5", icon: "📦" },
+  { key: "despachado", label: "Despachado", color: "#6B7280", bg: "#F3F4F6", icon: "🚚" },
+];
+
+const fmt = (n) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
+const fmtFecha = (iso) => new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+const genId = () => "PED-" + Date.now().toString().slice(-7);
+
+// ─── DEMO DATA ────────────────────────────────────────────────────────────────
+const DEMO_PEDIDOS = [
+  {
+    id: "PED-0010001", estado: "pendiente", creado: new Date(Date.now() - 3600000).toISOString(),
+    cliente: { tipo: "nit", doc: "800.125.989-1", razonSocial: "Supermercados La 14 S.A.", ciudad: "Cali", direccionFiscal: "Calle 5 # 44-20", direccionEntrega: "Av. 6N # 25-10", telefono: "6022345678", email: "compras@la14.com.co" },
+    items: [{ ...PRODUCTOS[0], cantidad: 36 }, { ...PRODUCTOS[1], cantidad: 18 }],
+    observaciones: "Entrega antes del mediodía", fechaEntrega: "2026-06-12",
+  },
+  {
+    id: "PED-0010002", estado: "aprobado", creado: new Date(Date.now() - 86400000).toISOString(),
+    cliente: { tipo: "nit", doc: "890.903.938-8", razonSocial: "Almacenes Éxito S.A.", ciudad: "Medellín", direccionFiscal: "Carrera 48 # 32-195", direccionEntrega: "Carrera 48 # 32-195", telefono: "6044444444", email: "logistica@exito.com.co" },
+    items: [{ ...PRODUCTOS[3], cantidad: 24 }, { ...PRODUCTOS[4], cantidad: 12 }],
+    observaciones: "", fechaEntrega: "2026-06-11",
+  },
+  {
+    id: "PED-0010003", estado: "produccion", creado: new Date(Date.now() - 172800000).toISOString(),
+    cliente: { tipo: "cedula", doc: "71.234.567", razonSocial: "Pedro Restrepo", ciudad: "Medellín", direccionFiscal: "", direccionEntrega: "Cra 70 # 44-50 Apto 301", telefono: "3016789012", email: "pedro.r@gmail.com" },
+    items: [{ ...PRODUCTOS[2], cantidad: 60 }],
+    observaciones: "Cliente nuevo, verificar dirección", fechaEntrega: "2026-06-10",
+  },
+];
+
+// ─── CONSULTA RUES/DIAN (simulada con datos reales de prueba) ─────────────────
+async function consultarIdentificacion(tipo, numero) {
+  const nitLimpio = numero.replace(/[.\-\s]/g, "");
+  
+  // Solo consultar RUES para NITs (empresas)
+  if (tipo === "nit") {
+    if (nitLimpio.length < 9) return { ok: false, mensaje: "NIT muy corto. Verifica el número." };
+    try {
+      const resp = await fetch(`https://paisamole-api.vercel.app/api/rues?nit=${nitLimpio}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.ok) return { ok: true, ...data };
+        return {
+          ok: true,
+          razonSocial: "", ciudad: "", direccion: "",
+          pendienteVerificacion: true,
+          mensaje: data.mensaje || "NIT no encontrado. Ingresa la razón social manualmente."
+        };
+      }
+    } catch (e) {}
+    return {
+      ok: true,
+      razonSocial: "", ciudad: "", direccion: "",
+      pendienteVerificacion: true,
+      mensaje: "No se pudo consultar el RUES. Ingresa la razón social manualmente."
+    };
+  }
+
+  // Para cédulas (persona natural) — ingreso manual
+  if (tipo === "cedula") {
+    if (nitLimpio.length < 6) return { ok: false, mensaje: "Cédula muy corta. Verifica el número." };
+    return {
+      ok: true,
+      razonSocial: "", ciudad: "", direccion: "",
+      pendienteVerificacion: true,
+      mensaje: "Ingresa tu nombre completo y ciudad."
+    };
+  }
+
+  return { ok: false, mensaje: "Tipo de documento no válido." };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FORMULARIO DE PEDIDO
+// ═══════════════════════════════════════════════════════════════════════════════
+function FormularioPedido({ onPedido }) {
+  const [paso, setPaso] = useState(1);
+  const [tipoDoc, setTipoDoc] = useState("nit");
+  const [numDoc, setNumDoc] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [clienteData, setClienteData] = useState(null);
+  const [errorDoc, setErrorDoc] = useState("");
+  const [direccionEntrega, setDireccionEntrega] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
+  const [items, setItems] = useState([]);
+  const [observaciones, setObservaciones] = useState("");
+  const [fechaEntrega, setFechaEntrega] = useState("");
+  const [enviado, setEnviado] = useState(null);
+  const [errors, setErrors] = useState({});
+
+  const buscarCliente = async () => {
+    if (!numDoc.trim()) return;
+    setBuscando(true); setErrorDoc(""); setClienteData(null);
+    const res = await consultarIdentificacion(tipoDoc, numDoc);
+    setBuscando(false);
+    if (res.ok) {
+      setClienteData(res);
+      setDireccionEntrega(res.direccion || "");
+    } else {
+      setErrorDoc("No se encontró información. Verifica el número.");
+    }
+  };
+
+  const addItem = (prod) => {
+    if (items.find(i => i.id === prod.id)) return;
+    setItems([...items, { ...prod, cantidad: prod.minimo }]);
+  };
+
+  const updateCantidad = (id, val) => {
+    const prod = PRODUCTOS.find(p => p.id === id);
+    const cant = Math.max(prod.minimo, Number(val));
+    setItems(items.map(i => i.id === id ? { ...i, cantidad: cant } : i));
+  };
+
+  const removeItem = (id) => setItems(items.filter(i => i.id !== id));
+
+  const subtotal = items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+  const totalIva = items.reduce((a, i) => a + i.iva * i.cantidad, 0);
+  const total = subtotal + totalIva;
+
+  const validarPaso1 = () => {
+    if (!clienteData) { setErrors({ doc: "Consulta el NIT o cédula primero" }); return false; }
+    if (!direccionEntrega.trim()) { setErrors({ dir: "Ingresa la dirección de entrega" }); return false; }
+    if (!telefono.trim()) { setErrors({ tel: "Ingresa un teléfono de contacto" }); return false; }
+    setErrors({}); return true;
+  };
+
+  const validarPaso2 = () => {
+    if (items.length === 0) { setErrors({ items: "Agrega al menos un producto" }); return false; }
+    if (!fechaEntrega) { setErrors({ fecha: "Selecciona la fecha requerida" }); return false; }
+    setErrors({}); return true;
+  };
+
+  const enviar = () => {
+    if (!validarPaso2()) return;
+    const pedido = {
+      id: genId(), estado: "pendiente", creado: new Date().toISOString(),
+      cliente: { tipo: tipoDoc, doc: numDoc, razonSocial: clienteData.razonSocial, ciudad: clienteData.ciudad, direccionFiscal: clienteData.direccion, direccionEntrega, telefono, email },
+      items, observaciones, fechaEntrega,
+    };
+    onPedido(pedido);
+    setEnviado(pedido);
+  };
+
+  if (enviado) return (
+    <div style={s.successWrap}>
+      <div style={s.successCard}>
+        <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole" style={{height:90, objectFit:'contain', margin:'0 auto 12px', display:'block'}} />
+        <h2 style={s.successTitle}>¡Pedido recibido!</h2>
+        <p style={s.successSub}>Tu pedido <strong>{enviado.id}</strong> fue registrado y está pendiente de aprobación. Te contactaremos pronto.</p>
+        <div style={s.successDetail}>
+          <div style={s.successRow}><span>Cliente</span><strong>{enviado.cliente.razonSocial}</strong></div>
+          <div style={s.successRow}><span>Entrega solicitada</span><strong>{fmtFecha(enviado.fechaEntrega + "T12:00:00")}</strong></div>
+          <div style={s.successRow}><span>Total estimado</span><strong style={{ color: EMPRESA.color }}>{fmt(enviado.items.reduce((a, i) => a + i.total * i.cantidad, 0))}</strong></div>
+        </div>
+        <button style={s.btnVerde} onClick={() => { setEnviado(null); setPaso(1); setClienteData(null); setNumDoc(""); setItems([]); setObservaciones(""); setFechaEntrega(""); setTelefono(""); setEmail(""); setDireccionEntrega(""); }}>
+          Realizar otro pedido
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={s.formWrap}>
+      {/* HEADER */}
+      <div style={s.formHeader}>
+        <div style={s.headerLogo}>
+          <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole" style={{height: 72, objectFit: 'contain', display: 'block'}} />
+        </div>
+        <div style={s.headerTitle}>
+          <h1 style={s.mainTitle}>Portal de Pedidos</h1>
+          <p style={s.mainSub}>Realiza tu pedido B2B de forma rápida y segura</p>
+        </div>
+      </div>
+
+      {/* STEPPER */}
+      <div style={s.stepper}>
+        {["Datos del cliente", "Productos y entrega", "Confirmar"].map((l, i) => (
+          <div key={i} style={s.stepItem}>
+            <div style={{ ...s.stepCircle, ...(paso > i + 1 ? s.stepDone : paso === i + 1 ? s.stepActive : {}) }}>
+              {paso > i + 1 ? "✓" : i + 1}
+            </div>
+            <span style={{ ...s.stepLabel, ...(paso === i + 1 ? { color: EMPRESA.color, fontWeight: 700 } : {}) }}>{l}</span>
+            {i < 2 && <div style={{ ...s.stepLine, ...(paso > i + 1 ? { background: EMPRESA.color } : {}) }} />}
+          </div>
+        ))}
+      </div>
+
+      <div style={s.formBody}>
+        {/* PASO 1 */}
+        {paso === 1 && (
+          <div style={s.fadeIn}>
+            <h3 style={s.secTitle}>Identificación del cliente</h3>
+            <div style={s.docRow}>
+              <div style={s.docTypeGroup}>
+                {[{ v: "nit", l: "NIT (Empresa)" }, { v: "cedula", l: "Cédula (Persona natural)" }].map(t => (
+                  <button key={t.v} style={{ ...s.docTypeBtn, ...(tipoDoc === t.v ? s.docTypeBtnActive : {}) }} onClick={() => { setTipoDoc(t.v); setClienteData(null); setNumDoc(""); setErrorDoc(""); }}>
+                    {t.l}
+                  </button>
+                ))}
+              </div>
+              <div style={s.docInputRow}>
+                <input style={{ ...s.input, flex: 1 }} placeholder={tipoDoc === "nit" ? "Ej: 900.123.456 (sin dígito de verificación)" : "Ej: 71.234.567"} value={numDoc} onChange={e => { setNumDoc(e.target.value); setClienteData(null); setErrorDoc(""); }} onKeyDown={e => e.key === "Enter" && buscarCliente()} />
+                <button style={{ ...s.btnVerde, padding: "10px 22px", minWidth: 130 }} onClick={buscarCliente} disabled={buscando || !numDoc.trim()}>
+                  {buscando ? <span style={s.spinner}>◌</span> : "🔍 Consultar"}
+                </button>
+              </div>
+              {tipoDoc === "nit" && <p style={s.helperText}>⚠️ Ingresa el NIT <strong>sin</strong> el dígito de verificación (el número después del guión)</p>}
+              {tipoDoc === "cedula" && <p style={s.helperText}>Ingresa el número de cédula sin puntos ni espacios</p>}
+              {errorDoc && <p style={s.errorText}>{errorDoc}</p>}
+              {errors.doc && <p style={s.errorText}>{errors.doc}</p>}
+            </div>
+
+            {clienteData && (
+              <div style={s.clienteCard}>
+                <div style={s.clienteCardHeader}>
+                  <span style={s.clienteIcon}>{clienteData.pendienteVerificacion ? "⚠️" : "🏢"}</span>
+                  <div style={{flex:1}}>
+                    {clienteData.pendienteVerificacion ? (
+                      <div>
+                        <p style={{margin:"0 0 6px", fontSize:13, color:"#92400E"}}>{clienteData.mensaje}</p>
+                        <input style={{...s.input, marginBottom:6}} placeholder={tipoDoc === "nit" ? "Razón social de la empresa" : "Nombre completo"} value={clienteData.razonSocial} onChange={e => setClienteData({...clienteData, razonSocial: e.target.value})} />
+                        <input style={s.input} placeholder="Ciudad" value={clienteData.ciudad} onChange={e => setClienteData({...clienteData, ciudad: e.target.value})} />
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={s.clienteNombre}>{clienteData.razonSocial}</div>
+                        <div style={s.clienteCiudad}>{clienteData.ciudad}</div>
+                      </div>
+                    )}
+                  </div>
+                  {!clienteData.pendienteVerificacion && <span style={s.verificadoBadge}>✓ Verificado RUES</span>}
+                  {clienteData.pendienteVerificacion && <span style={{...s.verificadoBadge, background:"#FEF3C7", color:"#92400E"}}>⚠️ Manual</span>}
+                </div>
+                {clienteData.direccion && <div style={s.clienteDirFiscal}>📍 Dirección fiscal: {clienteData.direccion}</div>}
+              </div>
+            )}
+
+            {clienteData && (
+              <div style={{ ...s.grid2, marginTop: 20 }}>
+                <div style={s.field}>
+                  <label style={s.label}>Dirección de entrega *</label>
+                  <input style={{ ...s.input, ...(errors.dir ? s.inputError : {}) }} value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)} placeholder="Calle / Carrera, número, barrio, ciudad" />
+                  {errors.dir && <p style={s.errorText}>{errors.dir}</p>}
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Teléfono de contacto *</label>
+                  <input style={{ ...s.input, ...(errors.tel ? s.inputError : {}) }} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Ej: 3001234567" />
+                  {errors.tel && <p style={s.errorText}>{errors.tel}</p>}
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Correo electrónico</label>
+                  <input style={s.input} value={email} onChange={e => setEmail(e.target.value)} placeholder="compras@empresa.com" />
+                </div>
+              </div>
+            )}
+
+            <div style={s.navRow}>
+              <div />
+              <button style={{ ...s.btnVerde, opacity: clienteData ? 1 : 0.4 }} onClick={() => { if (validarPaso1()) setPaso(2); }} disabled={!clienteData}>
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* PASO 2 */}
+        {paso === 2 && (
+          <div style={s.fadeIn}>
+            <h3 style={s.secTitle}>Selecciona los productos</h3>
+            <div style={s.prodGrid}>
+              {PRODUCTOS.map(p => {
+                const sel = items.find(i => i.id === p.id);
+                return (
+                  <div key={p.id} style={{ ...s.prodCard, ...(sel ? s.prodCardSel : {}) }} onClick={() => !sel && addItem(p)}>
+                    <div style={s.prodEmoji}>{p.empaque === "Bolsa" ? "🥑" : "🫙"}</div>
+                    <div style={s.prodInfo}>
+                      <div style={s.prodNombre}>{p.nombre}</div>
+                      <div style={s.prodPres}>{p.presentacion} · {p.empaque}</div>
+                      <div style={s.prodPrecio}>{fmt(p.total)} <span style={s.prodIva}>c/IVA</span></div>
+                      <div style={s.prodMin}>Mín. {p.minimo} und</div>
+                    </div>
+                    {sel
+                      ? <div style={s.prodQty}>
+                          <button style={s.qtyBtn} onClick={e => { e.stopPropagation(); updateCantidad(p.id, sel.cantidad - 1); }}>−</button>
+                          <input style={s.qtyInput} type="number" value={sel.cantidad} onChange={e => { e.stopPropagation(); updateCantidad(p.id, e.target.value); }} onClick={e => e.stopPropagation()} />
+                          <button style={s.qtyBtn} onClick={e => { e.stopPropagation(); updateCantidad(p.id, sel.cantidad + 1); }}>+</button>
+                          <button style={s.removeProd} onClick={e => { e.stopPropagation(); removeItem(p.id); }}>✕</button>
+                        </div>
+                      : <div style={s.addBtn}>+ Agregar</div>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+            {errors.items && <p style={s.errorText}>{errors.items}</p>}
+
+            {items.length > 0 && (
+              <div style={s.resumenBox}>
+                <h4 style={s.resumenTitle}>Resumen del pedido</h4>
+                {items.map(i => (
+                  <div key={i.id} style={s.resumenRow}>
+                    <span>{i.cantidad}× {i.nombre} {i.presentacion}</span>
+                    <span>{fmt(i.total * i.cantidad)}</span>
+                  </div>
+                ))}
+                <div style={s.resumenDivider} />
+                <div style={{ ...s.resumenRow, fontWeight: 700, fontSize: 16 }}>
+                  <span>Total con IVA</span>
+                  <span style={{ color: EMPRESA.color }}>{fmt(total)}</span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ ...s.grid2, marginTop: 20 }}>
+              <div style={s.field}>
+                <label style={s.label}>Fecha de entrega requerida *</label>
+                <input style={{ ...s.input, ...(errors.fecha ? s.inputError : {}) }} type="date" value={fechaEntrega} onChange={e => setFechaEntrega(e.target.value)} {...{min: (() => {
+                          // Calcular 4 días hábiles reales (sin sábados ni domingos)
+                          let d = new Date();
+                          let habiles = 0;
+                          while (habiles < 4) {
+                            d.setDate(d.getDate() + 1);
+                            const dow = d.getDay();
+                            if (dow !== 0 && dow !== 6) habiles++; // 0=dom, 6=sab
+                          }
+                          return d.toISOString().split("T")[0];
+                        })()}} />
+                {errors.fecha && <p style={s.errorText}>{errors.fecha}</p>}
+                <p style={{ fontSize: 11, color: "#94A3B8", margin: "4px 0 0" }}>⏱ Tiempo mínimo: 4 días hábiles (lunes a viernes). Los días anteriores están bloqueados.</p>
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>Observaciones</label>
+                <textarea style={{ ...s.input, minHeight: 72, resize: "vertical" }} value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Instrucciones especiales de entrega, refrigeración, etc." />
+              </div>
+            </div>
+
+            <div style={s.navRow}>
+              <button style={s.btnOutline} onClick={() => setPaso(1)}>← Volver</button>
+              <button style={s.btnVerde} onClick={() => { if (validarPaso2()) setPaso(3); }}>Continuar →</button>
+            </div>
+          </div>
+        )}
+
+        {/* PASO 3 */}
+        {paso === 3 && (
+          <div style={s.fadeIn}>
+            <h3 style={s.secTitle}>Confirma tu pedido</h3>
+            <div style={s.confirmGrid}>
+              <div style={s.confirmCard}>
+                <div style={s.confirmCardTitle}>👤 Cliente</div>
+                <div style={s.confirmLine}><span>Razón social</span><strong>{clienteData?.razonSocial}</strong></div>
+                <div style={s.confirmLine}><span>{tipoDoc === "nit" ? "NIT" : "Cédula"}</span><strong>{numDoc}</strong></div>
+                <div style={s.confirmLine}><span>Ciudad</span><strong>{clienteData?.ciudad}</strong></div>
+                <div style={s.confirmLine}><span>Entrega en</span><strong>{direccionEntrega}</strong></div>
+                <div style={s.confirmLine}><span>Teléfono</span><strong>{telefono}</strong></div>
+                {email && <div style={s.confirmLine}><span>Email</span><strong>{email}</strong></div>}
+              </div>
+              <div style={s.confirmCard}>
+                <div style={s.confirmCardTitle}>📦 Productos</div>
+                {items.map(i => (
+                  <div key={i.id} style={s.confirmLine}>
+                    <span>{i.cantidad}× {i.nombre} {i.presentacion}</span>
+                    <strong>{fmt(i.total * i.cantidad)}</strong>
+                  </div>
+                ))}
+                <div style={{ ...s.confirmLine, borderTop: "1px solid #E2E8F0", paddingTop: 10, marginTop: 6 }}>
+                  <span>Subtotal sin IVA</span><strong>{fmt(subtotal)}</strong>
+                </div>
+                <div style={s.confirmLine}><span>IVA</span><strong>{fmt(totalIva)}</strong></div>
+                <div style={{ ...s.confirmLine, fontWeight: 800, fontSize: 16 }}>
+                  <span>Total</span><strong style={{ color: EMPRESA.color }}>{fmt(total)}</strong>
+                </div>
+              </div>
+            </div>
+            <div style={s.confirmCard}>
+              <div style={s.confirmCardTitle}>🚚 Entrega</div>
+              <div style={s.confirmLine}><span>Fecha solicitada</span><strong>{fmtFecha(fechaEntrega + "T12:00:00")}</strong></div>
+              {observaciones && <div style={s.confirmLine}><span>Observaciones</span><strong>{observaciones}</strong></div>}
+            </div>
+            <div style={s.aviso}>
+              ℹ️ Tu pedido quedará <strong>pendiente de aprobación</strong>. Un asesor de Paisamole SAS lo revisará y confirmará por correo o teléfono.
+            </div>
+            <div style={s.navRow}>
+              <button style={s.btnOutline} onClick={() => setPaso(2)}>← Volver</button>
+              <button style={s.btnVerde} onClick={enviar}>✓ Enviar pedido</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PANEL DE PRODUCCIÓN
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── IMPORTAR ORDEN DE COMPRA ─────────────────────────────────────────────────
+function ImportarOrden({ onPedidoImportado, pdfFile, setPdfFile, pdfStatus, setPdfStatus, pdfExtracted, setPdfExtracted, pdfError, setPdfError }) {
+  const PRODUCTOS_MAP = {
+    1: { id:1, nombre:"Paisamole Picante", presentacion:"200gr", empaque:"Tarrina", precio:9411, iva:1788.09, total:11199.09, entrega:"4 días hábiles", minimo:18 },
+    2: { id:2, nombre:"Guacamole Paisamole", presentacion:"200gr", empaque:"Tarrina", precio:8800, iva:1672, total:10472, entrega:"4 días hábiles", minimo:18 },
+    3: { id:3, nombre:"Molego", presentacion:"200gr", empaque:"Tarrina", precio:4950, iva:940.50, total:5890.50, entrega:"4 días hábiles", minimo:30 },
+    4: { id:4, nombre:"Guacamole Paisamole", presentacion:"400gr", empaque:"Tarrina", precio:15246, iva:2896.74, total:18142.74, entrega:"4 días hábiles", minimo:12 },
+    5: { id:5, nombre:"Aguacate Chunki", presentacion:"1000gr", empaque:"Bolsa", precio:12500, iva:2375, total:14875, entrega:"4 días hábiles", minimo:12 },
+  };
+
+  const [editando, setEditando] = useState(null);
+
+  const procesarPDF = async (file) => {
+    setPdfFile(file);
+    setPdfStatus("leyendo");
+    setPdfError("");
+    setPdfExtracted(null);
+    try {
+      const data = await leerOrdenCompraConIA(file);
+      setPdfExtracted(data);
+      setPdfStatus("revisando");
+    } catch(e) {
+      setPdfStatus("error");
+      setPdfError("No se pudo leer el PDF. Verifica que sea un archivo válido.");
+    }
+  };
+
+  const confirmarPedido = () => {
+    if (!pdfExtracted) return;
+    const items = (pdfExtracted.items || [])
+      .filter(i => i.productoId && PRODUCTOS_MAP[i.productoId])
+      .map(i => ({ ...PRODUCTOS_MAP[i.productoId], cantidad: i.cantidad || PRODUCTOS_MAP[i.productoId].minimo }));
+
+    if (items.length === 0) { setPdfError("No se encontraron productos válidos. Edita los ítems manualmente."); return; }
+
+    const pedido = {
+      id: genId(),
+      estado: "pendiente",
+      creado: new Date().toISOString(),
+      fuente: "pdf",
+      numerOrden: pdfExtracted.numerOrden || "",
+      cliente: {
+        tipo: "nit",
+        doc: pdfExtracted.nit || "",
+        razonSocial: pdfExtracted.razonSocial || "",
+        ciudad: pdfExtracted.ciudad || "",
+        direccionFiscal: "",
+        direccionEntrega: pdfExtracted.direccionEntrega || "",
+        telefono: pdfExtracted.telefono || "",
+        email: pdfExtracted.email || "",
+      },
+      items,
+      observaciones: pdfExtracted.observaciones || "",
+      fechaEntrega: pdfExtracted.fechaEntrega || "",
+    };
+    onPedidoImportado(pedido);
+    setPdfFile(null); setPdfExtracted(null); setPdfStatus("idle");
+  };
+
+  return (
+    <div style={s.importWrap}>
+      <div style={s.importHeader}>
+        <h2 style={s.importTitle}>📄 Importar Orden de Compra</h2>
+        <p style={s.importSub}>Sube el PDF y la IA extrae automáticamente cliente, productos y cantidades</p>
+      </div>
+
+      {pdfStatus === "idle" && (
+        <label style={s.dropZone}>
+          <input type="file" accept=".pdf" style={{display:"none"}} onChange={e => e.target.files[0] && procesarPDF(e.target.files[0])} />
+          <div style={s.dropIcon}>📂</div>
+          <div style={s.dropText}>Arrastra el PDF aquí o haz clic para seleccionar</div>
+          <div style={s.dropSub}>Funciona con cualquier formato de orden de compra</div>
+        </label>
+      )}
+
+      {pdfStatus === "leyendo" && (
+        <div style={s.processingBox}>
+          <div style={s.processingSpinner}>🤖</div>
+          <div style={s.processingText}>Leyendo orden de compra con IA...</div>
+          <div style={s.processingBar}><div style={s.processingBarFill} /></div>
+        </div>
+      )}
+
+      {pdfStatus === "error" && (
+        <div style={s.errorBox}>
+          <p>❌ {pdfError}</p>
+          <button style={s.btnVerde} onClick={() => { setPdfStatus("idle"); setPdfFile(null); }}>Intentar de nuevo</button>
+        </div>
+      )}
+
+      {pdfStatus === "revisando" && pdfExtracted && (
+        <div style={s.extractedCard}>
+          <div style={s.extractedHeader}>
+            <span style={s.extractedBadge}>✓ Datos extraídos — revisa y confirma</span>
+            {pdfFile && <span style={s.pdfName}>📄 {pdfFile.name}</span>}
+          </div>
+
+          <div style={s.extractedGrid}>
+            <div style={s.extractedSection}>
+              <div style={s.extractedSecTitle}>Cliente</div>
+              <div style={s.extractedRow}><span>Razón social</span>
+                <input style={s.extractedInput} value={pdfExtracted.razonSocial||""} onChange={e=>setPdfExtracted({...pdfExtracted, razonSocial:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>NIT</span>
+                <input style={s.extractedInput} value={pdfExtracted.nit||""} onChange={e=>setPdfExtracted({...pdfExtracted, nit:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>Ciudad</span>
+                <input style={s.extractedInput} value={pdfExtracted.ciudad||""} onChange={e=>setPdfExtracted({...pdfExtracted, ciudad:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>Dir. entrega</span>
+                <input style={s.extractedInput} value={pdfExtracted.direccionEntrega||""} onChange={e=>setPdfExtracted({...pdfExtracted, direccionEntrega:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>Teléfono</span>
+                <input style={s.extractedInput} value={pdfExtracted.telefono||""} onChange={e=>setPdfExtracted({...pdfExtracted, telefono:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>Email</span>
+                <input style={s.extractedInput} value={pdfExtracted.email||""} onChange={e=>setPdfExtracted({...pdfExtracted, email:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>N° Orden</span>
+                <input style={s.extractedInput} value={pdfExtracted.numerOrden||""} onChange={e=>setPdfExtracted({...pdfExtracted, numerOrden:e.target.value})} />
+              </div>
+              <div style={s.extractedRow}><span>Fecha entrega</span>
+                <input style={{...s.extractedInput, colorScheme:"light"}} type="date" value={pdfExtracted.fechaEntrega||""} onChange={e=>setPdfExtracted({...pdfExtracted, fechaEntrega:e.target.value})} />
+              </div>
+            </div>
+
+            <div style={s.extractedSection}>
+              <div style={s.extractedSecTitle}>Productos detectados</div>
+              {(pdfExtracted.items||[]).map((item, idx) => (
+                <div key={idx} style={s.extractedItem}>
+                  <div style={s.extractedItemName}>
+                    <span style={{fontSize:11, color:"#94A3B8", display:"block"}}>En la orden: "{item.nombreOriginal}"</span>
+                    <select style={s.extractedSelect}
+                      value={item.productoId||""}
+                      onChange={e => {
+                        const items = [...pdfExtracted.items];
+                        items[idx] = {...items[idx], productoId: e.target.value ? Number(e.target.value) : null};
+                        setPdfExtracted({...pdfExtracted, items});
+                      }}>
+                      <option value="">— No coincide —</option>
+                      {Object.values(PRODUCTOS_MAP).map(p => <option key={p.id} value={p.id}>{p.nombre} {p.presentacion}</option>)}
+                    </select>
+                  </div>
+                  <div style={s.extractedQty}>
+                    <span style={{fontSize:12, color:"#64748B"}}>Cant.</span>
+                    <input type="number" style={{...s.extractedInput, width:70, textAlign:"center"}}
+                      value={item.cantidad||""}
+                      onChange={e => {
+                        const items = [...pdfExtracted.items];
+                        items[idx] = {...items[idx], cantidad: Number(e.target.value)};
+                        setPdfExtracted({...pdfExtracted, items});
+                      }} />
+                  </div>
+                </div>
+              ))}
+              {pdfExtracted.observaciones && (
+                <div style={{marginTop:12}}>
+                  <div style={{fontSize:12, color:"#64748B", marginBottom:4}}>Observaciones</div>
+                  <textarea style={{...s.extractedInput, minHeight:60, width:"100%", resize:"vertical"}}
+                    value={pdfExtracted.observaciones}
+                    onChange={e=>setPdfExtracted({...pdfExtracted, observaciones:e.target.value})} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {pdfError && <p style={s.errorText}>{pdfError}</p>}
+
+          <div style={s.extractedActions}>
+            <button style={s.btnOutline} onClick={() => { setPdfStatus("idle"); setPdfFile(null); setPdfExtracted(null); }}>
+              ← Cancelar
+            </button>
+            <button style={s.btnVerde} onClick={confirmarPedido}>
+              ✓ Confirmar e ingresar pedido
+            </button>
+          </div>
+        </div>
+      )}
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ─── LECTOR PDF CON IA ───────────────────────────────────────────────────────
+async function leerOrdenCompraConIA(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            messages: [{
+              role: "user",
+              content: [
+                {
+                  type: "document",
+                  source: { type: "base64", media_type: "application/pdf", data: base64 }
+                },
+                {
+                  type: "text",
+                  text: `Eres un asistente de Paisamole SAS, empresa colombiana de guacamole. Analiza esta orden de compra y extrae la información en formato JSON. 
+                  
+Los productos de Paisamole SAS son:
+- Paisamole Picante 200gr
+- Guacamole Paisamole 200gr  
+- Molego 200gr
+- Guacamole Paisamole 400gr
+- Aguacate Chunki 1000gr
+
+Responde SOLO con un JSON válido, sin texto adicional, sin markdown:
+{
+  "razonSocial": "nombre del cliente/empresa que emite la orden",
+  "nit": "NIT o identificación del cliente si aparece",
+  "ciudad": "ciudad del cliente",
+  "direccionEntrega": "dirección de entrega si aparece",
+  "telefono": "teléfono si aparece",
+  "email": "email si aparece",
+  "fechaEntrega": "fecha de entrega requerida en formato YYYY-MM-DD, si no hay pon null",
+  "numerOrden": "número de orden de compra si aparece",
+  "observaciones": "notas u observaciones relevantes",
+  "items": [
+    {
+      "nombreOriginal": "nombre exacto del producto en la orden",
+      "productoId": número del 1 al 5 del producto Paisamole más parecido o null si no coincide,
+      "cantidad": número entero de unidades,
+      "precioUnitario": precio unitario si aparece o null
+    }
+  ]
+}`
+                }
+              ]
+            }]
+          })
+        });
+        const data = await response.json();
+        const text = data.content?.[0]?.text || "";
+        const clean = text.replace(/```json|```/g, "").trim();
+        const parsed = JSON.parse(clean);
+        resolve(parsed);
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
+  const [filtro, setFiltro] = useState("todos");
+  const [buscar, setBuscar] = useState("");
+  const [detalle, setDetalle] = useState(null);
+  const [autenticado, setAutenticado] = useState(false);
+  const [pass, setPass] = useState("");
+  const [passError, setPassError] = useState(false);
+  const [subVista, setSubVista] = useState("pedidos"); // "pedidos" | "importar"
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfStatus, setPdfStatus] = useState("idle"); // idle | leyendo | revisando | listo | error
+  const [pdfExtracted, setPdfExtracted] = useState(null);
+  const [pdfError, setPdfError] = useState("");
+
+  const PASS = "paisamole2024";
+
+  if (!autenticado) return (
+    <div style={s.loginWrap}>
+      <div style={s.loginCard}>
+        <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole" style={{height:90, objectFit:'contain', display:'block', margin:'0 auto 12px'}} />
+        <h2 style={{ margin: "12px 0 4px", color: EMPRESA.colorOscuro, fontFamily: "'Montserrat', sans-serif" }}>Panel de Producción</h2>
+        <p style={{ color: "#64748B", margin: "0 0 24px", fontSize: 14 }}>Paisamole SAS · Acceso restringido</p>
+        <input style={{ ...s.input, marginBottom: 12, textAlign: "center", letterSpacing: 4 }} type="password" placeholder="Contraseña" value={pass} onChange={e => { setPass(e.target.value); setPassError(false); }} onKeyDown={e => e.key === "Enter" && (pass === PASS ? setAutenticado(true) : setPassError(true))} />
+        {passError && <p style={s.errorText}>Contraseña incorrecta</p>}
+        <button style={s.btnVerde} onClick={() => pass === PASS ? setAutenticado(true) : setPassError(true)}>Ingresar</button>
+        <p style={{ fontSize: 11, color: "#CBD5E1", marginTop: 16 }}>Demo: paisamole2024</p>
+      </div>
+    </div>
+  );
+
+  const lista = pedidos
+    .filter(p => filtro === "todos" || p.estado === filtro)
+    .filter(p =>
+      p.cliente.razonSocial.toLowerCase().includes(buscar.toLowerCase()) ||
+      p.id.includes(buscar) ||
+      p.cliente.doc.includes(buscar)
+    )
+    .sort((a, b) => new Date(b.creado) - new Date(a.creado));
+
+  const conteos = ESTADOS.reduce((acc, e) => { acc[e.key] = pedidos.filter(p => p.estado === e.key).length; return acc; }, {});
+  const totalPend = pedidos.filter(p => p.estado === "pendiente").length;
+
+  const exportCSV = () => {
+    const rows = [["ID", "Estado", "Fecha pedido", "Cliente", "Doc", "Ciudad", "Dirección entrega", "Teléfono", "Email", "Productos", "Subtotal", "IVA", "Total", "Fecha entrega", "Observaciones"]];
+    pedidos.forEach(p => {
+      const prods = p.items.map(i => `${i.cantidad}x ${i.nombre} ${i.presentacion}`).join(" | ");
+      const sub = p.items.reduce((a, i) => a + i.precio * i.cantidad, 0);
+      const iva = p.items.reduce((a, i) => a + i.iva * i.cantidad, 0);
+      rows.push([p.id, p.estado, p.creado, p.cliente.razonSocial, p.cliente.doc, p.cliente.ciudad, p.cliente.direccionEntrega, p.cliente.telefono, p.cliente.email, prods, sub, iva, sub + iva, p.fechaEntrega, p.observaciones]);
+    });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv); a.download = `paisamole_pedidos_${new Date().toISOString().split("T")[0]}.csv`; a.click();
+  };
+
+  return (
+    <div style={s.panelWrap}>
+      {/* HEADER */}
+      <div style={s.panelHeader}>
+        <div style={s.panelHeaderLeft}>
+          <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole" style={{height:56, objectFit:'contain', display:'block'}} />
+          <div>
+            <h1 style={s.panelTitle}>Panel de Producción</h1>
+            <p style={s.panelSub}>Paisamole SAS · NIT 901.472.548-7</p>
+          </div>
+        </div>
+        <div style={s.kpiWrap}>
+          {ESTADOS.map(e => (
+            <div key={e.key} style={s.kpiItem}>
+              <span style={{ fontSize: 20 }}>{e.icon}</span>
+              <span style={{ ...s.kpiNum, color: e.color }}>{conteos[e.key] || 0}</span>
+              <span style={s.kpiLbl}>{e.label.split(" ")[0]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* TOOLBAR */}
+      <div style={s.toolbar}>
+        <input style={{ ...s.input, maxWidth: 280, margin: 0 }} placeholder="🔍 Buscar cliente, NIT o ID..." value={buscar} onChange={e => setBuscar(e.target.value)} />
+        <div style={s.filtroWrap}>
+          {["todos", ...ESTADOS.map(e => e.key)].map(k => {
+            const est = ESTADOS.find(e => e.key === k);
+            return (
+              <button key={k} style={{ ...s.filtroBtn, ...(filtro === k ? { ...s.filtroBtnActive, borderColor: est?.color || EMPRESA.color, color: est?.color || EMPRESA.color } : {}) }} onClick={() => setFiltro(k)}>
+                {est?.icon} {est?.label || "Todos"}
+                {k !== "todos" && <span style={{ ...s.filtroCnt, background: est?.bg, color: est?.color }}>{conteos[k] || 0}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <button style={s.btnExport} onClick={exportCSV}>⬇ Exportar CSV</button>
+      </div>
+
+      {/* SUB-TABS */}
+      <div style={s.subTabs}>
+        <button style={{...s.subTab, ...(subVista==="pedidos" ? s.subTabActive : {})}} onClick={() => setSubVista("pedidos")}>
+          📋 Pedidos
+        </button>
+        <button style={{...s.subTab, ...(subVista==="importar" ? s.subTabActive : {})}} onClick={() => setSubVista("importar")}>
+          📄 Importar Orden de Compra
+        </button>
+      </div>
+
+      {subVista === "importar" && (
+        <ImportarOrden
+          onPedidoImportado={(p) => { onNuevoPedido(p); setSubVista("pedidos"); }}
+          pdfFile={pdfFile} setPdfFile={setPdfFile}
+          pdfStatus={pdfStatus} setPdfStatus={setPdfStatus}
+          pdfExtracted={pdfExtracted} setPdfExtracted={setPdfExtracted}
+          pdfError={pdfError} setPdfError={setPdfError}
+        />
+      )}
+
+      {subVista === "pedidos" && totalPend > 0 && (
+        <div style={s.alertBanner}>
+          ⚠️ Tienes <strong>{totalPend} pedido{totalPend > 1 ? "s" : ""}</strong> pendiente{totalPend > 1 ? "s" : ""} de aprobación
+        </div>
+      )}
+
+      {subVista === "pedidos" && (
+      <div>
+      {/* TABLA */}
+      <div style={s.tableWrap}>
+        {lista.length === 0 ? (
+          <div style={s.emptyState}>No hay pedidos que coincidan con los filtros.</div>
+        ) : (
+          <table style={s.table}>
+            <thead>
+              <tr>{["ID", "Cliente / NIT", "Productos", "Total", "Entrega", "Estado", "Acciones"].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {lista.map(p => {
+                const est = ESTADOS.find(e => e.key === p.estado);
+                const totalPed = p.items.reduce((a, i) => a + i.total * i.cantidad, 0);
+                return (
+                  <tr key={p.id} style={s.tr}>
+                    <td style={s.td}><code style={s.code}>{p.id}</code><div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>{fmtFecha(p.creado)}</div></td>
+                    <td style={s.td}>
+                      <div style={s.clienteNombreTabla}>{p.cliente.razonSocial}</div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>{p.cliente.tipo === "nit" ? "NIT" : "CC"}: {p.cliente.doc}</div>
+                      <div style={{ fontSize: 11, color: "#94A3B8" }}>📍 {p.cliente.ciudad}</div>
+                    </td>
+                    <td style={s.td}>
+                      {p.items.map((i, idx) => <div key={idx} style={{ fontSize: 12, color: "#475569" }}>{i.cantidad}× {i.nombre} {i.presentacion}</div>)}
+                    </td>
+                    <td style={{ ...s.td, fontWeight: 700, color: EMPRESA.color, whiteSpace: "nowrap" }}>{fmt(totalPed)}</td>
+                    <td style={{ ...s.td, whiteSpace: "nowrap" }}>{fmtFecha(p.fechaEntrega + "T12:00:00")}</td>
+                    <td style={s.td}>
+                      <span style={{ ...s.badge, color: est.color, background: est.bg }}>{est.icon} {est.label}</span>
+                    </td>
+                    <td style={s.td}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <select style={s.selectAccion} value={p.estado} onChange={e => onEstado(p.id, e.target.value)}>
+                          {ESTADOS.map(e => <option key={e.key} value={e.key}>{e.icon} {e.label}</option>)}
+                        </select>
+                        <button style={s.btnDetalle} onClick={() => setDetalle(p)}>Ver detalle</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* MODAL DETALLE */}
+      {detalle && (
+        <div style={s.modalOverlay} onClick={() => setDetalle(null)}>
+          <div style={s.modalCard} onClick={e => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <div>
+                <h3 style={{ margin: 0, color: EMPRESA.colorOscuro }}>{detalle.id}</h3>
+                <p style={{ margin: "2px 0 0", fontSize: 13, color: "#64748B" }}>Recibido el {fmtFecha(detalle.creado)}</p>
+              </div>
+              <button style={s.modalClose} onClick={() => setDetalle(null)}>✕</button>
+            </div>
+            <div style={s.modalBody}>
+              <div style={s.modalSection}>
+                <div style={s.modalSecTitle}>Cliente</div>
+                <div style={s.modalLine}><span>Razón social</span><strong>{detalle.cliente.razonSocial}</strong></div>
+                <div style={s.modalLine}><span>{detalle.cliente.tipo === "nit" ? "NIT" : "Cédula"}</span><strong>{detalle.cliente.doc}</strong></div>
+                <div style={s.modalLine}><span>Ciudad</span><strong>{detalle.cliente.ciudad}</strong></div>
+                <div style={s.modalLine}><span>Dir. fiscal</span><strong>{detalle.cliente.direccionFiscal || "—"}</strong></div>
+                <div style={s.modalLine}><span>Dir. entrega</span><strong>{detalle.cliente.direccionEntrega}</strong></div>
+                <div style={s.modalLine}><span>Teléfono</span><strong>{detalle.cliente.telefono}</strong></div>
+                <div style={s.modalLine}><span>Email</span><strong>{detalle.cliente.email || "—"}</strong></div>
+              </div>
+              <div style={s.modalSection}>
+                <div style={s.modalSecTitle}>Productos</div>
+                {detalle.items.map((i, idx) => (
+                  <div key={idx} style={s.modalLine}>
+                    <span>{i.cantidad}× {i.nombre} {i.presentacion} ({i.empaque})</span>
+                    <strong>{fmt(i.total * i.cantidad)}</strong>
+                  </div>
+                ))}
+                <div style={{ ...s.modalLine, borderTop: "1px solid #E2E8F0", paddingTop: 8, marginTop: 4, fontWeight: 700 }}>
+                  <span>TOTAL c/IVA</span>
+                  <strong style={{ color: EMPRESA.color }}>{fmt(detalle.items.reduce((a, i) => a + i.total * i.cantidad, 0))}</strong>
+                </div>
+              </div>
+              {detalle.observaciones && (
+                <div style={s.modalSection}>
+                  <div style={s.modalSecTitle}>Observaciones</div>
+                  <p style={{ margin: 0, color: "#475569", fontSize: 13 }}>{detalle.observaciones}</p>
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                <select style={{ ...s.selectAccion, flex: 1, padding: "10px 12px" }} value={detalle.estado} onChange={e => { onEstado(detalle.id, e.target.value); setDetalle({ ...detalle, estado: e.target.value }); }}>
+                  {ESTADOS.map(e => <option key={e.key} value={e.key}>{e.icon} {e.label}</option>)}
+                </select>
+                <button style={s.btnVerde} onClick={() => setDetalle(null)}>Cerrar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP ROOT
+// ═══════════════════════════════════════════════════════════════════════════════
+function App() {
+  const [vista, setVista] = useState("pedido");
+  const [pedidos, setPedidos] = useState(DEMO_PEDIDOS);
+  const pendientes = pedidos.filter(p => p.estado === "pendiente").length;
+
+  return (
+    <div style={s.root}>
+      <nav style={s.nav}>
+        <div style={s.navBrand}>
+          <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole" style={{height: 48, objectFit: 'contain', display: 'block'}} />
+        </div>
+        <div style={s.navTabs}>
+          <button style={{ ...s.navTab, ...(vista === "pedido" ? s.navTabActive : {}) }} onClick={() => setVista("pedido")}>
+            📋 Hacer Pedido
+          </button>
+          <button style={{ ...s.navTab, ...(vista === "panel" ? s.navTabActive : {}) }} onClick={() => setVista("panel")}>
+            🏭 Panel Producción
+            {pendientes > 0 && <span style={s.notif}>{pendientes}</span>}
+          </button>
+        </div>
+      </nav>
+      <main>
+        {vista === "pedido"
+          ? <FormularioPedido onPedido={p => { setPedidos(prev => [p, ...prev]); setVista("panel"); }} />
+          : <PanelProduccion pedidos={pedidos} onEstado={(id, est) => setPedidos(prev => prev.map(p => p.id === id ? { ...p, estado: est } : p))} onNuevoPedido={p => setPedidos(prev => [p, ...prev])} />
+        }
+      </main>
+    </div>
+  );
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const s = {
+  root: { fontFamily: "'Montserrat', sans-serif", letterSpacing: '-0.1px', minHeight: "100vh", background: "#F0F4F0", color: "#1A2E1A" },
+  nav: { background: "#fff", borderBottom: "2px solid #D4E8C4", padding: "0 28px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, position: "sticky", top: 0, zIndex: 200, boxShadow: "0 2px 8px rgba(45,106,45,0.08)" },
+  navBrand: { display: "flex", alignItems: "center", gap: 10 },
+  navBrandName: { fontWeight: 900, fontSize: 18, color: EMPRESA.colorOscuro, letterSpacing: "-0.5px", fontFamily: "'Montserrat', sans-serif" },
+  navTabs: { display: "flex", gap: 4 },
+  navTab: { padding: "8px 18px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#64748B", display: "flex", alignItems: "center", gap: 7, fontFamily: "'Montserrat', sans-serif" },
+  navTabActive: { background: "#E8F5E9", color: EMPRESA.color },
+  notif: { background: "#EF4444", color: "#fff", borderRadius: 99, fontSize: 11, fontWeight: 800, padding: "1px 6px", minWidth: 18, textAlign: "center" },
+
+  // Form
+  formWrap: { maxWidth: 780, margin: "0 auto", padding: "28px 16px" },
+  formHeader: { background: `linear-gradient(135deg, ${EMPRESA.colorOscuro} 0%, #2D5A1B 45%, #4A7C3F 100%)`, borderRadius: 16, padding: "28px 32px", display: "flex", alignItems: "center", gap: 20, marginBottom: 24, flexWrap: "wrap" },
+  headerLogo: { display: "flex", alignItems: "center", gap: 12 },
+  logoEmoji: { fontSize: 44 },
+  logoNombre: { fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: "-0.5px" },
+  logoNit: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  headerTitle: { flex: 1 },
+  mainTitle: { margin: 0, fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: "-1px", fontFamily: "'Montserrat', sans-serif" },
+  mainSub: { margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" },
+
+  stepper: { display: "flex", alignItems: "center", justifyContent: "center", gap: 0, background: "#fff", borderRadius: 12, padding: "16px 24px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", flexWrap: "wrap" },
+  stepItem: { display: "flex", alignItems: "center", gap: 8 },
+  stepCircle: { width: 30, height: 30, borderRadius: "50%", border: "2px solid #CBD5E1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#94A3B8", background: "#F8FAFC", flexShrink: 0 },
+  stepActive: { border: `2px solid ${EMPRESA.color}`, color: EMPRESA.color, background: '#EBF5DC' },
+  stepDone: { border: `2px solid ${EMPRESA.color}`, color: "#fff", background: EMPRESA.color },
+  stepLabel: { fontSize: 13, color: "#94A3B8", whiteSpace: "nowrap" },
+  stepLine: { width: 40, height: 2, background: "#E2E8F0", margin: "0 8px" },
+
+  formBody: { background: "#fff", borderRadius: 16, padding: "28px 32px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" },
+  fadeIn: { animation: "fadeIn .3s ease" },
+  secTitle: { fontSize: 16, fontWeight: 700, color: EMPRESA.colorOscuro, marginBottom: 16, marginTop: 0 },
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+  field: { display: "flex", flexDirection: "column", gap: 5 },
+  label: { fontSize: 13, fontWeight: 600, color: "#475569" },
+  input: { padding: "10px 14px", borderRadius: 9, border: "1.5px solid #B8D4A0", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "'Montserrat', sans-serif", background: "#fff", transition: "border .15s" },
+  inputError: { borderColor: "#EF4444", background: "#FFF5F5" },
+  errorText: { fontSize: 12, color: "#EF4444", margin: "3px 0 0" },
+  helperText: { fontSize: 12, color: "#6B7A5A", margin: "5px 0 0", background: "#F5FAE8", padding: "6px 10px", borderRadius: 6, border: "1px solid #C8DC2A" },
+
+  docRow: { marginBottom: 16 },
+  docTypeGroup: { display: "flex", gap: 8, marginBottom: 12 },
+  docTypeBtn: { padding: "8px 16px", borderRadius: 8, border: "1.5px solid #D1D5DB", background: "#F8FAFC", fontSize: 13, cursor: "pointer", fontWeight: 500, fontFamily: "'Montserrat', sans-serif", color: "#475569" },
+  docTypeBtnActive: { border: `1.5px solid ${EMPRESA.color}`, background: '#EBF5DC', color: EMPRESA.color, fontWeight: 700 },
+  docInputRow: { display: "flex", gap: 10 },
+
+  clienteCard: { background: '#F5FAE8', border: `1.5px solid ${EMPRESA.acento}`, borderRadius: 12, padding: "14px 18px", marginTop: 12 },
+  clienteCardHeader: { display: "flex", alignItems: "center", gap: 12 },
+  clienteIcon: { fontSize: 28 },
+  clienteNombre: { fontWeight: 700, fontSize: 16, color: EMPRESA.colorOscuro },
+  clienteCiudad: { fontSize: 13, color: "#64748B" },
+  verificadoBadge: { marginLeft: "auto", background: "#E8F5C0", color: "#3B6E22", fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 99 },
+  clienteDirFiscal: { fontSize: 12, color: "#64748B", marginTop: 8 },
+
+  prodGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 },
+  prodCard: { border: "1.5px solid #E2E8F0", borderRadius: 12, padding: "14px", cursor: "pointer", transition: "all .15s", background: "#fff", display: "flex", flexDirection: "column", gap: 6 },
+  prodCardSel: { border: `1.5px solid ${EMPRESA.color}`, background: '#EBF5DC' },
+  prodEmoji: { fontSize: 28 },
+  prodInfo: {},
+  prodNombre: { fontWeight: 700, fontSize: 14, color: "#1A2E1A" },
+  prodPres: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  prodPrecio: { fontSize: 15, fontWeight: 800, color: EMPRESA.color, marginTop: 4 },
+  prodIva: { fontSize: 11, fontWeight: 400, color: "#94A3B8" },
+  prodMin: { fontSize: 11, color: "#94A3B8" },
+  prodQty: { display: "flex", alignItems: "center", gap: 6, marginTop: 4 },
+  qtyBtn: { width: 28, height: 28, borderRadius: 6, border: `1px solid ${EMPRESA.color}`, background: "#fff", color: EMPRESA.color, fontWeight: 800, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" },
+  qtyInput: { width: 50, textAlign: "center", padding: "4px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 13, fontFamily: "'Montserrat', sans-serif" },
+  removeProd: { marginLeft: "auto", background: "#FEE2E2", border: "none", color: "#EF4444", borderRadius: 6, width: 28, height: 28, cursor: "pointer", fontSize: 12, fontWeight: 700 },
+  addBtn: { background: '#EBF5DC', color: EMPRESA.color, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, textAlign: "center", marginTop: 4 },
+
+  resumenBox: { background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 20px" },
+  resumenTitle: { margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: ".5px" },
+  resumenRow: { display: "flex", justifyContent: "space-between", fontSize: 14, padding: "4px 0" },
+  resumenDivider: { borderTop: "1px solid #E2E8F0", margin: "8px 0" },
+
+  confirmGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 },
+  confirmCard: { background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 12, padding: "16px 18px", marginBottom: 12 },
+  confirmCardTitle: { fontWeight: 700, fontSize: 13, color: "#64748B", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 10 },
+  confirmLine: { display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13, padding: "4px 0", color: "#475569" },
+  aviso: { background: "#FFF8E1", border: "1px solid #FDD835", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#5D4037", marginBottom: 20 },
+
+  navRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 24, paddingTop: 20, borderTop: "1px solid #F1F5F9" },
+  btnVerde: { background: EMPRESA.color, color: "#fff", border: "none", borderRadius: 10, padding: "11px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", transition: "all .15s" },
+  btnOutline: { background: "transparent", color: EMPRESA.color, border: `1.5px solid ${EMPRESA.color}`, borderRadius: 10, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Montserrat', sans-serif" },
+
+  successWrap: { maxWidth: 500, margin: "40px auto", padding: "0 16px" },
+  successCard: { background: "#fff", borderRadius: 20, padding: "40px 32px", textAlign: "center", boxShadow: "0 8px 40px rgba(30,61,16,0.15)" },
+  successAvocado: { fontSize: 56, marginBottom: 12 },
+  successTitle: { margin: "0 0 8px", fontSize: 26, fontWeight: 900, color: EMPRESA.colorOscuro, fontFamily: "'Montserrat', sans-serif" },
+  successSub: { color: "#64748B", fontSize: 14, marginBottom: 24 },
+  successDetail: { background: '#EBF5DC', borderRadius: 12, padding: "16px 20px", marginBottom: 24, textAlign: "left" },
+  successRow: { display: "flex", justifyContent: "space-between", fontSize: 14, padding: "5px 0", color: "#475569" },
+  spinner: { display: "inline-block", animation: "spin 1s linear infinite" },
+
+  // Panel
+  panelWrap: { padding: "0 0 40px", background: '#F2F7EC' },
+  panelHeader: { background: `linear-gradient(135deg, ${EMPRESA.colorOscuro} 0%, #2D5A1B 40%, #4A7C3F 80%, #6B8C1A 100%)`, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20 },
+  panelHeaderLeft: { display: "flex", alignItems: "center", gap: 14 },
+  panelTitle: { margin: 0, fontSize: 24, fontWeight: 900, color: "#fff", fontFamily: "'Montserrat', sans-serif" },
+  panelSub: { margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  kpiWrap: { display: "flex", gap: 2, background: "rgba(255,255,255,0.12)", borderRadius: 12, overflow: "hidden" },
+  kpiItem: { display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 18px", borderRight: "1px solid rgba(255,255,255,0.15)" },
+  kpiNum: { fontSize: 22, fontWeight: 900, color: "#fff" },
+  kpiLbl: { fontSize: 10, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+
+  toolbar: { padding: "14px 24px", background: "#fff", borderBottom: "1px solid #D4E8C4", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  filtroWrap: { display: "flex", gap: 6, flexWrap: "wrap", flex: 1 },
+  filtroBtn: { padding: "6px 12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "#F8FAFC", fontSize: 12, cursor: "pointer", color: "#64748B", fontFamily: "'Montserrat', sans-serif", display: "flex", alignItems: "center", gap: 5 },
+  filtroBtnActive: { background: "#fff", fontWeight: 700 },
+  filtroCnt: { borderRadius: 99, fontSize: 11, padding: "1px 6px", fontWeight: 700 },
+  btnExport: { background: "#fff", border: "1px solid #D1D5DB", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#475569", fontFamily: "'Montserrat', sans-serif", marginLeft: "auto" },
+
+  alertBanner: { background: "#F5FAC8", border: "1px solid #C8DC2A", padding: "10px 24px", fontSize: 13, color: "#4A5A0A" },
+  tableWrap: { overflowX: "auto", background: '#fff' },
+  table: { width: "100%", borderCollapse: "collapse", background: "#fff" },
+  th: { padding: "11px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#4A6030", textTransform: "uppercase", letterSpacing: ".6px", background: "#EBF5DC", borderBottom: "2px solid #C8DC2A" },
+  tr: { borderBottom: "1px solid #F0F4F0", transition: "background .1s" },
+  td: { padding: "12px 16px", fontSize: 13, verticalAlign: "top" },
+  clienteNombreTabla: { fontWeight: 700, color: "#1A2E1A", fontSize: 14 },
+  badge: { display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 99, fontSize: 12, fontWeight: 700 },
+  code: { fontFamily: "monospace", fontSize: 12, background: "#F1F5F9", padding: "2px 6px", borderRadius: 4, color: "#475569" },
+  selectAccion: { padding: "7px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12, background: "#fff", cursor: "pointer", fontFamily: "'Montserrat', sans-serif" },
+  btnDetalle: { padding: "5px 10px", borderRadius: 7, border: `1px solid ${EMPRESA.color}`, background: EMPRESA.colorClaro, color: EMPRESA.color, fontSize: 12, cursor: "pointer", fontWeight: 600, fontFamily: "'Montserrat', sans-serif" },
+  emptyState: { padding: "60px 24px", textAlign: "center", color: "#94A3B8", fontSize: 14 },
+
+  // Modal
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 16 },
+  modalCard: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
+  modalHeader: { padding: "20px 24px", borderBottom: "1px solid #D4E8C4", display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: '#EBF5DC' },
+  modalClose: { background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: "#64748B", padding: 4 },
+  modalBody: { padding: "20px 24px" },
+  modalSection: { marginBottom: 20 },
+  modalSecTitle: { fontWeight: 700, fontSize: 12, color: "#64748B", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 8 },
+  modalLine: { display: "flex", justifyContent: "space-between", gap: 12, fontSize: 13, padding: "5px 0", color: "#475569", borderBottom: "1px solid #F8FAFC" },
+
+  // Login
+  loginWrap: { display: "flex", alignItems: "center", justifyContent: "center", minHeight: "80vh" },
+
+  // Sub tabs
+  subTabs: { display: "flex", gap: 0, background: "#fff", borderBottom: "2px solid #D4E8C4" },
+  subTab: { padding: "12px 24px", border: "none", background: "transparent", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#64748B", fontFamily: "'Montserrat', sans-serif", borderBottom: "3px solid transparent", marginBottom: -2 },
+  subTabActive: { color: EMPRESA.color, borderBottom: `3px solid ${EMPRESA.color}`, background: "#F5FAE8" },
+
+  // Importar
+  importWrap: { padding: "28px 28px 40px", background: "#F2F7EC", minHeight: 400 },
+  importHeader: { marginBottom: 24 },
+  importTitle: { margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: EMPRESA.colorOscuro, fontFamily: "'Montserrat', sans-serif" },
+  importSub: { margin: 0, fontSize: 13, color: "#64748B" },
+  dropZone: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: `2px dashed ${EMPRESA.acento}`, borderRadius: 16, padding: "48px 24px", background: "#fff", cursor: "pointer", transition: "all .2s", gap: 10 },
+  dropIcon: { fontSize: 48 },
+  dropText: { fontSize: 16, fontWeight: 700, color: EMPRESA.colorOscuro, fontFamily: "'Montserrat', sans-serif" },
+  dropSub: { fontSize: 13, color: "#94A3B8" },
+  processingBox: { background: "#fff", borderRadius: 16, padding: "48px 24px", textAlign: "center" },
+  processingSpinner: { fontSize: 48, marginBottom: 16, display: "block", animation: "spin 2s linear infinite" },
+  processingText: { fontSize: 16, fontWeight: 600, color: EMPRESA.colorOscuro, marginBottom: 20, fontFamily: "'Montserrat', sans-serif" },
+  processingBar: { background: "#E2E8F0", borderRadius: 99, height: 6, maxWidth: 300, margin: "0 auto", overflow: "hidden" },
+  processingBarFill: { height: "100%", background: EMPRESA.color, borderRadius: 99, width: "70%", animation: "pulse 1.5s ease-in-out infinite" },
+  errorBox: { background: "#FFF5F5", border: "1px solid #FCA5A5", borderRadius: 12, padding: "24px", textAlign: "center", color: "#EF4444" },
+  extractedCard: { background: "#fff", borderRadius: 16, border: `1px solid ${EMPRESA.acento}`, overflow: "hidden" },
+  extractedHeader: { background: EMPRESA.colorClaro, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 },
+  extractedBadge: { background: "#D1FAE5", color: "#065F46", fontSize: 13, fontWeight: 700, padding: "4px 12px", borderRadius: 99 },
+  pdfName: { fontSize: 12, color: "#64748B" },
+  extractedGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 },
+  extractedSection: { padding: "20px 24px", borderRight: "1px solid #E8F0E8" },
+  extractedSecTitle: { fontSize: 12, fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 12 },
+  extractedRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8, fontSize: 13, color: "#475569" },
+  extractedInput: { padding: "6px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 13, fontFamily: "'Montserrat', sans-serif", flex: 1, minWidth: 0 },
+  extractedItem: { background: "#F8FAFC", borderRadius: 8, padding: "10px 12px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 },
+  extractedItemName: { flex: 1 },
+  extractedSelect: { padding: "6px 10px", borderRadius: 7, border: "1px solid #D1D5DB", fontSize: 12, background: "#fff", fontFamily: "'Montserrat', sans-serif", width: "100%", marginTop: 4 },
+  extractedQty: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 80 },
+  extractedActions: { padding: "16px 24px", borderTop: "1px solid #E8F0E8", display: "flex", justifyContent: "space-between", gap: 12 },
+  loginCard: { background: "#fff", borderRadius: 20, padding: "40px 36px", textAlign: "center", maxWidth: 380, width: "100%", boxShadow: "0 8px 40px rgba(30,61,16,0.15)" },
+};
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
