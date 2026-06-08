@@ -799,7 +799,8 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
         </div>
       )}
 
-      {subVista === "pedidos" && <>
+      {subVista === "pedidos" && (
+      <>
       {/* TABLA */}
       <div style={s.tableWrap}>
         {lista.length === 0 ? (
@@ -895,6 +896,7 @@ function PanelProduccion({ pedidos, onEstado, onDelete, onNuevoPedido }) {
             </div>
           </div>
         </div>
+      )}
       )}
     </div>
   );
