@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Paisamole SAS — Panel de Producción</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Montserrat',sans-serif}
+:root{--verde:#3B6E22;--verde-claro:#EEF6E6;--verde-oscuro:#1E3D10;--acento:#C8DC2A;--bg:#F2F7EC}
+body{background:var(--bg);min-height:100vh}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-card{background:#fff;border-radius:20px;padding:40px 36px;text-align:center;max-width:360px;width:100%;box-shadow:0 8px 40px rgba(30,61,16,0.15)}
+.login-card img{height:80px;margin-bottom:16px}
+.login-card h2{font-size:22px;font-weight:900;color:var(--verde-oscuro);margin-bottom:6px}
+.login-card p{font-size:13px;color:#64748B;margin-bottom:24px}
+.panel{display:none}
+.panel-header{background:linear-gradient(135deg,#1E3D10 0%,#2D5A1B 40%,#4A7C3F 80%,#6B8C1A 100%);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.panel-header img{height:50px;object-fit:contain}
+.panel-title{font-size:22px;font-weight:900;color:#fff}
+.panel-sub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px}
+.kpi-wrap{display:flex;background:rgba(255,255,255,0.12);border-radius:10px;overflow:hidden}
+.kpi{display:flex;flex-direction:column;align-items:center;padding:8px 16px;border-right:1px solid rgba(255,255,255,0.15)}
+.kpi:last-child{border-right:none}
+.kpi-num{font-size:22px;font-weight:900;color:#fff}
+.kpi-lbl{font-size:9px;color:rgba(255,255,255,0.7);margin-top:1px}
+.sub-tabs{display:flex;background:#fff;border-bottom:2px solid #D4E8C4}
+.sub-tab{padding:12px 24px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;color:#64748B;font-family:'Montserrat',sans-serif;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
+.sub-tab.active{color:var(--verde);border-bottom-color:var(--verde);background:#F5FAE8}
+.toolbar{padding:12px 20px;background:#fff;border-bottom:1px solid #D4E8C4;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.input{width:100%;padding:9px 12px;border-radius:8px;border:1.5px solid #B8D4A0;font-size:13px;font-family:'Montserrat',sans-serif;outline:none}
+.filtro-wrap{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.filtro-btn{padding:5px 11px;border-radius:7px;border:1px solid #E2E8F0;background:#F8FAFC;font-size:11px;cursor:pointer;color:#64748B;font-family:'Montserrat',sans-serif;transition:all .15s}
+.filtro-btn.active{font-weight:700;border-color:var(--verde);color:var(--verde);background:#EBF5DC}
+.btn-export{background:#fff;border:1px solid #D1D5DB;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;color:#475569;font-family:'Montserrat',sans-serif;white-space:nowrap}
+.alert-banner{background:#F5FAC8;border:1px solid #C8DC2A;padding:10px 20px;font-size:13px;color:#4A5A0A}
+.table-wrap{overflow-x:auto;background:#fff}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;color:#4A6030;text-transform:uppercase;letter-spacing:.5px;background:#EBF5DC;border-bottom:2px solid #C8DC2A;white-space:nowrap}
+tr{border-bottom:1px solid #F0F4F0}
+tr:hover{background:#FAFCF8}
+td{padding:11px 14px;font-size:12px;vertical-align:top}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.code-id{font-family:monospace;font-size:11px;background:#F1F5F9;padding:2px 6px;border-radius:4px;color:#475569}
+.select-accion{padding:5px 8px;border-radius:6px;border:1px solid #D1D5DB;font-size:11px;background:#fff;cursor:pointer;font-family:'Montserrat',sans-serif;width:100%}
+.btn-detalle{padding:5px 10px;border-radius:6px;border:1px solid var(--verde);background:var(--verde-claro);color:var(--verde);font-size:11px;cursor:pointer;font-weight:600;font-family:'Montserrat',sans-serif;width:100%;margin-top:4px}
+.empty-state{padding:60px 24px;text-align:center;color:#94A3B8;font-size:14px}
+.export-bar{padding:12px 20px;background:#EBF5DC;border-top:1px solid #C8DC2A;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.export-note{font-size:11px;color:#94A3B8}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;display:none}
+.modal-overlay.visible{display:flex}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal-header{padding:18px 22px;background:var(--verde-claro);border-bottom:1px solid #D4E8C4;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:transparent;border:none;font-size:18px;cursor:pointer;color:#64748B;padding:4px}
+.modal-body{padding:20px 22px}
+.modal-sec{margin-bottom:18px}
+.modal-sec-title{font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.modal-line{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;color:#475569;border-bottom:1px solid #F8FAFC}
+/* Import */
+.import-wrap{padding:24px;background:var(--bg);min-height:400px;display:none}
+.import-wrap.visible{display:block}
+.drop-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed var(--acento);border-radius:14px;padding:40px 20px;background:#fff;cursor:pointer;gap:10px;max-width:600px;margin:0 auto}
+.drop-icon{font-size:48px}
+.drop-text{font-size:15px;font-weight:700;color:var(--verde-oscuro)}
+.drop-sub{font-size:12px;color:#94A3B8;text-align:center}
+.btn-verde{background:var(--verde);color:#fff;border:none;border-radius:10px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
+.btn-outline{background:transparent;color:var(--verde);border:1.5px solid var(--verde);border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
+.processing{background:#fff;border-radius:16px;padding:48px 24px;text-align:center;max-width:600px;margin:0 auto}
+.extracted-card{background:#fff;border-radius:16px;border:1px solid var(--acento);overflow:hidden;max-width:800px;margin:0 auto}
+.extracted-header{background:var(--verde-claro);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.extracted-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.extracted-sec{padding:16px 20px;border-right:1px solid #E8F0E8}
+.extracted-sec:last-child{border-right:none}
+.extracted-sec-title{font-size:10px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.extracted-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12px;color:#475569}
+.ex-input{padding:5px 8px;border-radius:6px;border:1px solid #D1D5DB;font-size:12px;font-family:'Montserrat',sans-serif;flex:1;min-width:0}
+.item-row{background:#F8FAFC;border-radius:8px;padding:9px 11px;margin-bottom:8px}
+.item-original{font-size:10px;color:#94A3B8;margin-bottom:4px}
+.item-select{padding:5px 8px;border-radius:6px;border:1px solid #D1D5DB;font-size:11px;background:#fff;font-family:'Montserrat',sans-serif;width:100%;margin-bottom:5px}
+.extracted-actions{padding:14px 20px;border-top:1px solid #E8F0E8;display:flex;justify-content:space-between;gap:12px}
+.error-text{font-size:12px;color:#EF4444;margin-top:4px}
+@media(max-width:600px){.extracted-body{grid-template-columns:1fr}.kpi-wrap{flex-wrap:wrap}.kpi{min-width:60px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole">
+    <h2>Panel de Producción</h2>
+    <p>Paisamole SAS · Acceso restringido</p>
+    <div style="margin-bottom:12px">
+      <input class="input" type="password" id="passInput" placeholder="Contraseña" style="text-align:center;letter-spacing:3px;margin-bottom:8px" onkeydown="if(event.key==='Enter')login()">
+      <div id="passError" class="error-text hidden">Contraseña incorrecta</div>
+    </div>
+    <button class="btn-verde" onclick="login()" style="width:100%">Ingresar</button>
+    <p style="font-size:11px;color:#CBD5E1;margin-top:16px">Demo: paisamole2024</p>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole">
+      <div>
+        <div class="panel-title">Panel de Producción</div>
+        <div class="panel-sub">Paisamole SAS · NIT 901.472.548-7</div>
+      </div>
+    </div>
+    <div class="kpi-wrap" id="kpiWrap"></div>
+  </div>
+
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="setSubTab('pedidos',this)">📋 Pedidos</button>
+    <button class="sub-tab" onclick="setSubTab('importar',this)">📄 Importar Orden de Compra</button>
+  </div>
+
+  <!-- PEDIDOS -->
+  <div id="tabPedidos">
+    <div class="toolbar">
+      <input class="input" id="buscar" placeholder="🔍 Buscar cliente, NIT o ID..." style="max-width:260px" oninput="renderTabla()">
+      <div class="filtro-wrap" id="filtros"></div>
+      <button class="btn-export" onclick="exportCSV()">⬇ Exportar CSV</button>
+    </div>
+    <div id="alertBanner" style="display:none" class="alert-banner"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Cliente / Doc</th><th>Productos</th><th>Total</th><th>Entrega</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="tablaPedidos"></tbody>
+      </table>
+    </div>
+    <div class="export-bar">
+      <span class="export-note">💡 Los pedidos se guardan localmente. Próximamente: sync con Google Sheets.</span>
+    </div>
+  </div>
+
+  <!-- IMPORTAR -->
+  <div class="import-wrap" id="tabImportar">
+    <div style="margin-bottom:20px;text-align:center">
+      <h2 style="font-size:20px;font-weight:800;color:var(--verde-oscuro);margin-bottom:6px">📄 Importar Orden de Compra</h2>
+      <p style="font-size:13px;color:#64748B">Sube el PDF y la IA extrae automáticamente cliente, productos y cantidades</p>
+    </div>
+    <div id="dropZone" class="drop-zone" onclick="document.getElementById('pdfInput').click()">
+      <div class="drop-icon">📂</div>
+      <div class="drop-text">Arrastra el PDF aquí o haz clic para seleccionar</div>
+      <div class="drop-sub">Funciona con cualquier formato de orden de compra<br>Powered by IA · Claude Sonnet</div>
+      <button class="btn-verde" type="button">Seleccionar PDF</button>
+      <input type="file" id="pdfInput" accept=".pdf" style="display:none" onchange="procesarPDF(this.files[0])">
+    </div>
+    <div id="procesando" class="processing" style="display:none">
+      <div style="font-size:48px;margin-bottom:16px">🤖</div>
+      <div style="font-size:16px;font-weight:700;color:var(--verde-oscuro);margin-bottom:20px">Leyendo orden de compra con IA...</div>
+      <div style="background:#E2E8F0;border-radius:99px;height:6px;max-width:300px;margin:0 auto;overflow:hidden">
+        <div style="height:100%;background:var(--verde);border-radius:99px;width:0%;transition:width 3s ease" id="progressBar"></div>
+      </div>
+    </div>
+    <div id="extractedCard" class="extracted-card" style="display:none">
+      <div class="extracted-header">
+        <span style="background:#D1FAE5;color:#065F46;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px">✓ Datos extraídos — revisa y confirma</span>
+        <span id="pdfNombre" style="font-size:11px;color:#64748B"></span>
+      </div>
+      <div class="extracted-body">
+        <div class="extracted-sec">
+          <div class="extracted-sec-title">Cliente</div>
+          <div class="extracted-row"><span>Razón social</span><input class="ex-input" id="ex-razonSocial"></div>
+          <div class="extracted-row"><span>NIT</span><input class="ex-input" id="ex-nit"></div>
+          <div class="extracted-row"><span>Ciudad</span><input class="ex-input" id="ex-ciudad"></div>
+          <div class="extracted-row"><span>Dir. entrega</span><input class="ex-input" id="ex-direccion"></div>
+          <div class="extracted-row"><span>Teléfono</span><input class="ex-input" id="ex-telefono"></div>
+          <div class="extracted-row"><span>Email</span><input class="ex-input" id="ex-email"></div>
+          <div class="extracted-row"><span>N° Orden</span><input class="ex-input" id="ex-numOrden"></div>
+          <div class="extracted-row"><span>Fecha entrega</span><input class="ex-input" type="date" id="ex-fecha"></div>
+        </div>
+        <div class="extracted-sec">
+          <div class="extracted-sec-title">Productos detectados</div>
+          <div id="ex-items"></div>
+          <div style="margin-top:10px">
+            <div style="font-size:11px;color:#64748B;margin-bottom:4px">Observaciones</div>
+            <textarea class="ex-input" id="ex-obs" style="width:100%;min-height:60px;resize:vertical"></textarea>
+          </div>
+        </div>
+      </div>
+      <div id="ex-error" class="error-text" style="padding:0 20px;display:none"></div>
+      <div class="extracted-actions">
+        <button class="btn-outline" onclick="cancelarImport()">← Cancelar</button>
+        <button class="btn-verde" onclick="confirmarImport()">✓ Confirmar e ingresar pedido</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="modal-overlay" id="modalOverlay" onclick="cerrarModal(event)">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <div style="font-weight:800;font-size:16px;color:var(--verde-oscuro)" id="modalId"></div>
+        <div style="font-size:12px;color:#64748B;margin-top:2px" id="modalFecha"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('modalOverlay').classList.remove('visible')">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const PASS = 'paisamole2024';
+const PRODUCTOS = [
+  {id:1,nombre:"Paisamole Picante",presentacion:"200gr",empaque:"Tarrina",precio:9411,iva:1788.09,total:11199.09,minimo:18},
+  {id:2,nombre:"Guacamole Paisamole",presentacion:"200gr",empaque:"Tarrina",precio:8800,iva:1672,total:10472,minimo:18},
+  {id:3,nombre:"Molego",presentacion:"200gr",empaque:"Tarrina",precio:4950,iva:940.50,total:5890.50,minimo:30},
+  {id:4,nombre:"Guacamole Paisamole",presentacion:"400gr",empaque:"Tarrina",precio:15246,iva:2896.74,total:18142.74,minimo:12},
+  {id:5,nombre:"Aguacate Chunki",presentacion:"1000gr",empaque:"Bolsa",precio:12500,iva:2375,total:14875,minimo:12}
+];
+const ESTADOS = [
+  {key:'pendiente',label:'Pendiente aprobación',icon:'⏳',color:'#F59E0B',bg:'#FEF3C7'},
+  {key:'aprobado',label:'Aprobado',icon:'✅',color:'#3B82F6',bg:'#DBEAFE'},
+  {key:'produccion',label:'En producción',icon:'🏭',color:'#8B5CF6',bg:'#EDE9FE'},
+  {key:'listo',label:'Listo para despacho',icon:'📦',color:'#10B981',bg:'#D1FAE5'},
+  {key:'despachado',label:'Despachado',icon:'🚚',color:'#6B7280',bg:'#F3F4F6'}
+];
+const DEMO_PEDIDOS = [
+  {id:'PED-0010001',estado:'pendiente',creado:new Date(Date.now()-3600000).toISOString(),fuente:'portal',
+   cliente:{tipo:'nit',doc:'800.125.989-1',razonSocial:'Supermercados La 14 S.A.',ciudad:'Cali, Valle del Cauca',direccionEntrega:'Av. 6N # 25-10, Cali',telefono:'6022345678',email:'compras@la14.com.co'},
+   items:[{...PRODUCTOS[0],cantidad:36},{...PRODUCTOS[1],cantidad:18}],fechaEntrega:'2026-06-12',observaciones:'Entrega antes del mediodía'},
+  {id:'PED-0010002',estado:'aprobado',creado:new Date(Date.now()-86400000).toISOString(),fuente:'portal',
+   cliente:{tipo:'nit',doc:'890.903.938-8',razonSocial:'Almacenes Éxito S.A.',ciudad:'Medellín, Antioquia',direccionEntrega:'Carrera 48 # 32-195',telefono:'6044444444',email:'logistica@exito.com.co'},
+   items:[{...PRODUCTOS[3],cantidad:24},{...PRODUCTOS[4],cantidad:12}],fechaEntrega:'2026-06-11',observaciones:''},
+  {id:'PED-0010003',estado:'produccion',creado:new Date(Date.now()-172800000).toISOString(),fuente:'portal',
+   cliente:{tipo:'cedula',doc:'71.234.567',razonSocial:'Pedro Restrepo',ciudad:'Medellín',direccionEntrega:'Cra 70 # 44-50 Apto 301',telefono:'3016789012',email:''},
+   items:[{...PRODUCTOS[2],cantidad:60}],fechaEntrega:'2026-06-10',observaciones:'Cliente nuevo'}
+];
+
+const fmt = n => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n);
+const fmtFecha = s => { try { return new Date(s+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}); } catch(e){ return s; }};
+const genId = () => 'PED-'+Date.now().toString().slice(-7);
+
+let filtroActual = 'todos';
+let pedidos = [];
+
+function login() {
+  const val = document.getElementById('passInput').value;
+  if(val === PASS) {
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    cargarPedidos();
+    renderFiltros();
+    renderTabla();
+    renderKPIs();
+  } else {
+    document.getElementById('passError').classList.remove('hidden');
+  }
+}
+document.getElementById('passInput').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
+
+function cargarPedidos() {
+  const guardados = JSON.parse(localStorage.getItem('paisamole_pedidos')||'[]');
+  pedidos = [...guardados, ...DEMO_PEDIDOS.filter(d => !guardados.find(g=>g.id===d.id))];
+}
+
+function guardarPedidos() {
+  localStorage.setItem('paisamole_pedidos', JSON.stringify(pedidos));
+}
+
+function renderKPIs() {
+  const wrap = document.getElementById('kpiWrap');
+  const conteos = ESTADOS.reduce((a,e)=>{a[e.key]=pedidos.filter(p=>p.estado===e.key).length;return a},{});
+  wrap.innerHTML = ESTADOS.map(e=>`
+    <div class="kpi">
+      <span class="kpi-num" style="color:${e.color}">${conteos[e.key]||0}</span>
+      <span class="kpi-lbl">${e.label.split(' ')[0]}</span>
+    </div>`).join('');
+}
+
+function renderFiltros() {
+  const wrap = document.getElementById('filtros');
+  const conteos = ESTADOS.reduce((a,e)=>{a[e.key]=pedidos.filter(p=>p.estado===e.key).length;return a},{});
+  wrap.innerHTML = ['todos',...ESTADOS.map(e=>e.key)].map(k=>{
+    const est = ESTADOS.find(e=>e.key===k);
+    return `<button class="filtro-btn ${filtroActual===k?'active':''}" onclick="setFiltro('${k}',this)">
+      ${est?est.icon+' '+est.label:'Todos'}
+      ${k!=='todos'?`<span style="background:${est.bg};color:${est.color};border-radius:99px;font-size:10px;padding:1px 5px;font-weight:700;margin-left:3px">${conteos[k]||0}</span>`:''}
+    </button>`;
+  }).join('');
+}
+
+function setFiltro(k, btn) {
+  filtroActual = k;
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTabla();
+}
+
+function renderTabla() {
+  const buscar = document.getElementById('buscar').value.toLowerCase();
+  const lista = pedidos
+    .filter(p => filtroActual==='todos' || p.estado===filtroActual)
+    .filter(p => p.cliente.razonSocial.toLowerCase().includes(buscar) || p.id.includes(buscar) || (p.cliente.doc||'').includes(buscar))
+    .sort((a,b) => new Date(b.creado)-new Date(a.creado));
+
+  const pendientes = pedidos.filter(p=>p.estado==='pendiente').length;
+  const banner = document.getElementById('alertBanner');
+  if(pendientes > 0) {
+    banner.style.display = 'block';
+    banner.innerHTML = `⚠️ Tienes <strong>${pendientes} pedido${pendientes>1?'s':''}</strong> pendiente${pendientes>1?'s':''} de aprobación`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const tbody = document.getElementById('tablaPedidos');
+  if(lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No hay pedidos que coincidan.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(p => {
+    const est = ESTADOS.find(e=>e.key===p.estado);
+    const totalPed = p.items.reduce((a,i)=>a+i.total*i.cantidad,0);
+    return `<tr>
+      <td>
+        <span class="code-id">${p.id}</span>
+        ${p.fuente==='pdf'?'<span style="font-size:10px;background:#DBEAFE;color:#3B82F6;border-radius:99px;padding:1px 6px;margin-left:3px;font-weight:700">PDF</span>':''}
+        <div style="font-size:10px;color:#94A3B8;margin-top:2px">${fmtFecha(p.creado.split('T')[0])}</div>
+      </td>
+      <td>
+        <div style="font-weight:700;color:#1A2E1A;font-size:13px">${p.cliente.razonSocial}</div>
+        <div style="font-size:10px;color:#94A3B8">${p.cliente.tipo==='nit'?'NIT':'CC'}: ${p.cliente.doc}</div>
+        <div style="font-size:10px;color:#94A3B8">📍 ${p.cliente.ciudad}</div>
+      </td>
+      <td>${p.items.map(i=>`<div style="font-size:11px;color:#475569">${i.cantidad}× ${i.nombre} ${i.presentacion}</div>`).join('')}</td>
+      <td style="font-weight:700;color:#3B6E22;white-space:nowrap">${fmt(totalPed)}</td>
+      <td style="white-space:nowrap;font-size:12px">${fmtFecha(p.fechaEntrega)}</td>
+      <td><span class="badge" style="color:${est.color};background:${est.bg}">${est.icon} ${est.label}</span></td>
+      <td>
+        <select class="select-accion" onchange="cambiarEstado('${p.id}',this.value)">
+          ${ESTADOS.map(e=>`<option value="${e.key}" ${p.estado===e.key?'selected':''}>${e.icon} ${e.label}</option>`).join('')}
+        </select>
+        <button class="btn-detalle" onclick="verDetalle('${p.id}')">Ver detalle</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function cambiarEstado(id, nuevoEstado) {
+  const p = pedidos.find(x=>x.id===id);
+  if(p) { p.estado = nuevoEstado; guardarPedidos(); renderTabla(); renderKPIs(); renderFiltros(); }
+}
+
+function verDetalle(id) {
+  const p = pedidos.find(x=>x.id===id);
+  if(!p) return;
+  const est = ESTADOS.find(e=>e.key===p.estado);
+  const total = p.items.reduce((a,i)=>a+i.total*i.cantidad,0);
+  document.getElementById('modalId').textContent = p.id;
+  document.getElementById('modalFecha').textContent = 'Recibido el '+fmtFecha(p.creado.split('T')[0]);
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-sec">
+      <div class="modal-sec-title">Cliente</div>
+      <div class="modal-line"><span>Razón social</span><strong>${p.cliente.razonSocial}</strong></div>
+      <div class="modal-line"><span>${p.cliente.tipo==='nit'?'NIT':'Cédula'}</span><strong>${p.cliente.doc}</strong></div>
+      <div class="modal-line"><span>Ciudad</span><strong>${p.cliente.ciudad}</strong></div>
+      <div class="modal-line"><span>Dir. entrega</span><strong>${p.cliente.direccionEntrega}</strong></div>
+      <div class="modal-line"><span>Teléfono</span><strong>${p.cliente.telefono||'—'}</strong></div>
+      <div class="modal-line"><span>Email</span><strong>${p.cliente.email||'—'}</strong></div>
+    </div>
+    <div class="modal-sec">
+      <div class="modal-sec-title">Productos</div>
+      ${p.items.map(i=>`<div class="modal-line"><span>${i.cantidad}× ${i.nombre} ${i.presentacion} (${i.empaque})</span><strong>${fmt(i.total*i.cantidad)}</strong></div>`).join('')}
+      <div class="modal-line" style="font-weight:800;font-size:15px;border-top:1px solid #E2E8F0;padding-top:8px;margin-top:4px"><span>TOTAL c/IVA</span><strong style="color:#3B6E22">${fmt(total)}</strong></div>
+    </div>
+    ${p.observaciones?`<div class="modal-sec"><div class="modal-sec-title">Observaciones</div><p style="font-size:13px;color:#475569">${p.observaciones}</p></div>`:''}
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <select class="select-accion" style="flex:1;padding:10px 12px;font-size:13px" onchange="cambiarEstado('${p.id}',this.value)">
+        ${ESTADOS.map(e=>`<option value="${e.key}" ${p.estado===e.key?'selected':''}>${e.icon} ${e.label}</option>`).join('')}
+      </select>
+      <button class="btn-verde" onclick="document.getElementById('modalOverlay').classList.remove('visible')">Cerrar</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('visible');
+}
+
+function cerrarModal(e) {
+  if(e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('visible');
+}
+
+function exportCSV() {
+  const rows = [['ID','Estado','Fecha','Cliente','Doc','Ciudad','Dir.Entrega','Teléfono','Email','Productos','Total','Fecha Entrega','Observaciones']];
+  pedidos.forEach(p=>{
+    const prods = p.items.map(i=>`${i.cantidad}x ${i.nombre} ${i.presentacion}`).join(' | ');
+    const total = p.items.reduce((a,i)=>a+i.total*i.cantidad,0);
+    rows.push([p.id,p.estado,p.creado,p.cliente.razonSocial,p.cliente.doc,p.cliente.ciudad,p.cliente.direccionEntrega,p.cliente.telefono||'',p.cliente.email||'',prods,total,p.fechaEntrega,p.observaciones||'']);
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download = 'paisamole_pedidos_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+}
+
+// Sub tabs
+function setSubTab(tab, btn) {
+  document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabPedidos').style.display = tab==='pedidos' ? 'block' : 'none';
+  document.getElementById('tabImportar').classList.toggle('visible', tab==='importar');
+}
+
+// Import PDF
+async function procesarPDF(file) {
+  if(!file) return;
+  document.getElementById('dropZone').style.display = 'none';
+  document.getElementById('procesando').style.display = 'block';
+  document.getElementById('extractedCard').style.display = 'none';
+  document.getElementById('pdfNombre').textContent = file.name;
+  
+  // Animate progress bar
+  const bar = document.getElementById('progressBar');
+  setTimeout(()=>bar.style.width='70%',100);
+
+  try {
+    const base64 = await fileToBase64(file);
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
+          {type:'text',text:'Analiza esta orden de compra y extrae en JSON. Productos Paisamole: 1=Paisamole Picante 200gr, 2=Guacamole Paisamole 200gr, 3=Molego 200gr, 4=Guacamole Paisamole 400gr, 5=Aguacate Chunki 1000gr. Responde SOLO JSON sin markdown: {"razonSocial":"","nit":"","ciudad":"","direccionEntrega":"","telefono":"","email":"","fechaEntrega":"YYYY-MM-DD o null","numerOrden":"","observaciones":"","items":[{"nombreOriginal":"","productoId":1,"cantidad":0}]}'}
+        ]}]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.[0]?.text||'{}';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const extracted = JSON.parse(clean);
+    bar.style.width = '100%';
+    setTimeout(()=>{
+      document.getElementById('procesando').style.display = 'none';
+      mostrarExtracted(extracted);
+    }, 500);
+  } catch(e) {
+    document.getElementById('procesando').style.display = 'none';
+    document.getElementById('dropZone').style.display = 'flex';
+    alert('Error al procesar el PDF. Intenta de nuevo.');
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function mostrarExtracted(data) {
+  document.getElementById('ex-razonSocial').value = data.razonSocial||'';
+  document.getElementById('ex-nit').value = data.nit||'';
+  document.getElementById('ex-ciudad').value = data.ciudad||'';
+  document.getElementById('ex-direccion').value = data.direccionEntrega||'';
+  document.getElementById('ex-telefono').value = data.telefono||'';
+  document.getElementById('ex-email').value = data.email||'';
+  document.getElementById('ex-numOrden').value = data.numerOrden||'';
+  document.getElementById('ex-fecha').value = data.fechaEntrega||'';
+  document.getElementById('ex-obs').value = data.observaciones||'';
+
+  const itemsDiv = document.getElementById('ex-items');
+  itemsDiv.innerHTML = (data.items||[]).map((item,i)=>`
+    <div class="item-row" id="exitem${i}">
+      <div class="item-original">En la orden: "${item.nombreOriginal}"</div>
+      <select class="item-select" id="exsel${i}">
+        <option value="">— No coincide —</option>
+        ${PRODUCTOS.map(p=>`<option value="${p.id}" ${item.productoId==p.id?'selected':''}>${p.nombre} ${p.presentacion}</option>`).join('')}
+      </select>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#64748B">
+        Cant. <input type="number" id="exqty${i}" value="${item.cantidad||0}" style="width:60px;padding:4px;border-radius:5px;border:1px solid #D1D5DB;font-size:12px;font-family:'Montserrat',sans-serif">
+      </div>
+    </div>`).join('');
+  
+  window._exItemCount = (data.items||[]).length;
+  document.getElementById('extractedCard').style.display = 'block';
+}
+
+function confirmarImport() {
+  const items = [];
+  for(let i=0;i<(window._exItemCount||0);i++) {
+    const selEl = document.getElementById('exsel'+i);
+    const qtyEl = document.getElementById('exqty'+i);
+    if(selEl && selEl.value) {
+      const prod = PRODUCTOS.find(p=>p.id==selEl.value);
+      if(prod) items.push({...prod, cantidad: parseInt(qtyEl.value)||prod.minimo});
+    }
+  }
+  if(items.length===0){
+    document.getElementById('ex-error').textContent='Asigna al menos un producto válido';
+    document.getElementById('ex-error').style.display='block';
+    return;
+  }
+  const pedido = {
+    id: genId(),
+    estado: 'pendiente',
+    creado: new Date().toISOString(),
+    fuente: 'pdf',
+    numerOrden: document.getElementById('ex-numOrden').value,
+    cliente: {
+      tipo:'nit',
+      doc: document.getElementById('ex-nit').value,
+      razonSocial: document.getElementById('ex-razonSocial').value,
+      ciudad: document.getElementById('ex-ciudad').value,
+      direccionEntrega: document.getElementById('ex-direccion').value,
+      telefono: document.getElementById('ex-telefono').value,
+      email: document.getElementById('ex-email').value,
+    },
+    items,
+    fechaEntrega: document.getElementById('ex-fecha').value,
+    observaciones: document.getElementById('ex-obs').value,
+  };
+  pedidos.unshift(pedido);
+  guardarPedidos();
+  cancelarImport();
+  setSubTab('pedidos', document.querySelector('.sub-tab'));
+  document.querySelectorAll('.sub-tab')[0].classList.add('active');
+  document.querySelectorAll('.sub-tab')[1].classList.remove('active');
+  renderTabla(); renderKPIs(); renderFiltros();
+  alert('✅ Pedido importado correctamente: '+pedido.id);
+}
+
+function cancelarImport() {
+  document.getElementById('dropZone').style.display = 'flex';
+  document.getElementById('procesando').style.display = 'none';
+  document.getElementById('extractedCard').style.display = 'none';
+  document.getElementById('pdfInput').value = '';
+}
+
+// Init
+document.getElementById('tabPedidos').style.display = 'block';
+</script>
+</body>
+</html>
