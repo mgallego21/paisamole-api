@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Paisamole SAS — Portal de Pedidos</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Montserrat',sans-serif}
+:root{--verde:#3B6E22;--verde-claro:#EEF6E6;--verde-oscuro:#1E3D10;--acento:#C8DC2A;--bg:#F2F7EC}
+body{background:var(--bg);min-height:100vh}
+.header{background:linear-gradient(135deg,#1E3D10 0%,#2D5A1B 45%,#4A7C3F 100%);padding:20px 28px;display:flex;align-items:center;gap:16px}
+.header img{height:64px;object-fit:contain}
+.header h1{color:#fff;font-size:24px;font-weight:900;letter-spacing:-0.5px}
+.header p{color:rgba(255,255,255,0.75);font-size:13px;margin-top:3px}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px}
+.stepper{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,0.06);gap:0;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:8px}
+.step-circle{width:30px;height:30px;border-radius:50%;border:2px solid #CBD5E1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#94A3B8;background:#F8FAFC;flex-shrink:0;transition:all .2s}
+.step-circle.active{border-color:var(--verde);color:var(--verde);background:var(--verde-claro)}
+.step-circle.done{border-color:var(--verde);color:#fff;background:var(--verde)}
+.step-label{font-size:12px;color:#94A3B8;white-space:nowrap}
+.step-label.active{color:var(--verde);font-weight:700}
+.step-line{width:40px;height:2px;background:#E2E8F0;margin:0 8px;transition:background .2s}
+.step-line.done{background:var(--verde)}
+.card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:16px}
+.sec-title{font-size:15px;font-weight:700;color:var(--verde-oscuro);margin-bottom:16px}
+.label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:5px}
+.input{width:100%;padding:10px 14px;border-radius:9px;border:1.5px solid #B8D4A0;font-size:14px;font-family:'Montserrat',sans-serif;outline:none;transition:border .15s}
+.input:focus{border-color:var(--verde)}
+.input.error{border-color:#EF4444;background:#FFF5F5}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:14px}
+.error-text{font-size:12px;color:#EF4444;margin-top:3px}
+.helper{font-size:11px;color:#6B7A5A;margin-top:4px;background:#F5FAE8;padding:5px 9px;border-radius:5px;border:1px solid #C8DC2A}
+.doc-type-group{display:flex;gap:8px;margin-bottom:12px}
+.doc-btn{padding:8px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#F8FAFC;font-size:13px;cursor:pointer;font-weight:500;font-family:'Montserrat',sans-serif;color:#475569;transition:all .15s}
+.doc-btn.active{border-color:var(--verde);background:var(--verde-claro);color:var(--verde);font-weight:700}
+.input-row{display:flex;gap:10px}
+.btn-verde{background:var(--verde);color:#fff;border:none;border-radius:10px;padding:11px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s}
+.btn-verde:hover{background:#2D5A1B}
+.btn-verde:disabled{opacity:0.5;cursor:not-allowed}
+.btn-outline{background:transparent;color:var(--verde);border:1.5px solid var(--verde);border-radius:10px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',sans-serif}
+.nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding-top:20px;border-top:1px solid #F1F5F9}
+.cliente-card{background:#F5FAE8;border:1.5px solid var(--acento);border-radius:12px;padding:14px 18px;margin-top:12px;display:none}
+.cliente-card.visible{display:block}
+.cliente-nombre{font-weight:700;font-size:16px;color:var(--verde-oscuro)}
+.cliente-ciudad{font-size:13px;color:#64748B;margin-top:2px}
+.verificado{display:inline-block;background:#E8F5C0;color:#3B6E22;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;margin-top:6px}
+.manual-badge{display:inline-block;background:#FEF3C7;color:#92400E;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px}
+.spinner{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.prod-card{border:1.5px solid #E2E8F0;border-radius:12px;padding:14px;cursor:pointer;background:#fff;transition:all .15s}
+.prod-card:hover{border-color:var(--verde);background:var(--verde-claro)}
+.prod-card.selected{border-color:var(--verde);background:var(--verde-claro)}
+.prod-emoji{font-size:28px;margin-bottom:6px}
+.prod-nombre{font-weight:700;font-size:14px;color:#1A2E1A}
+.prod-pres{font-size:11px;color:#64748B;margin-top:1px}
+.prod-precio{font-size:15px;font-weight:800;color:var(--verde);margin-top:4px}
+.prod-min{font-size:10px;color:#94A3B8}
+.prod-qty{display:flex;align-items:center;gap:6px;margin-top:8px}
+.qty-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--verde);background:#fff;color:var(--verde);font-weight:800;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1}
+.qty-input{width:52px;text-align:center;padding:4px;border-radius:6px;border:1px solid #D1D5DB;font-size:13px;font-family:'Montserrat',sans-serif}
+.add-btn{background:var(--verde-claro);color:var(--verde);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;text-align:center;margin-top:8px;border:none;cursor:pointer;width:100%;font-family:'Montserrat',sans-serif}
+.resumen{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px 20px;margin-top:16px}
+.resumen-title{font-size:12px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.resumen-row{display:flex;justify-content:space-between;font-size:14px;padding:4px 0;color:#475569}
+.resumen-total{display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0 0;border-top:1px solid #E2E8F0;margin-top:6px;color:var(--verde-oscuro)}
+.confirm-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.confirm-card{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px}
+.confirm-title{font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.confirm-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;color:#475569;border-bottom:1px solid #F8FAFC}
+.aviso{background:#FFF8E1;border:1px solid #FDD835;border-radius:10px;padding:12px 16px;font-size:13px;color:#5D4037;margin-bottom:20px}
+.success{text-align:center;padding:40px 20px}
+.success-logo{height:90px;margin-bottom:16px}
+.success-title{font-size:26px;font-weight:900;color:var(--verde-oscuro);margin-bottom:8px}
+.success-sub{color:#64748B;font-size:14px;margin-bottom:24px}
+.success-detail{background:var(--verde-claro);border-radius:12px;padding:16px 20px;margin-bottom:24px;text-align:left}
+.success-row{display:flex;justify-content:space-between;font-size:14px;padding:5px 0;color:#475569}
+.hidden{display:none}
+textarea.input{resize:vertical;min-height:72px}
+select.input{background:#fff}
+@media(max-width:600px){.grid2,.prod-grid,.confirm-grid{grid-template-columns:1fr}.step-line{width:20px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" alt="Paisamole">
+  <div>
+    <h1>Portal de Pedidos</h1>
+    <p>Realiza tu pedido B2B de forma rápida y segura</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- STEPPER -->
+  <div class="stepper">
+    <div class="step">
+      <div class="step-circle active" id="sc1">1</div>
+      <span class="step-label active" id="sl1">Datos del cliente</span>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step">
+      <div class="step-circle" id="sc2">2</div>
+      <span class="step-label" id="sl2">Productos y entrega</span>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step">
+      <div class="step-circle" id="sc3">3</div>
+      <span class="step-label" id="sl3">Confirmar</span>
+    </div>
+  </div>
+
+  <!-- PASO 1 -->
+  <div id="paso1" class="card">
+    <div class="sec-title">Identificación del cliente</div>
+    <div class="doc-type-group">
+      <button class="doc-btn active" onclick="setTipoDoc('nit',this)">NIT (Empresa)</button>
+      <button class="doc-btn" onclick="setTipoDoc('cedula',this)">Cédula (Persona natural)</button>
+    </div>
+    <div class="input-row" style="margin-bottom:8px">
+      <input class="input" id="numDoc" placeholder="Ej: 900.123.456 (sin dígito de verificación)" style="flex:1">
+      <button class="btn-verde" id="btnConsultar" onclick="consultarDoc()">🔍 Consultar</button>
+    </div>
+    <div id="helperNit" class="helper">⚠️ Ingresa el NIT <strong>sin</strong> el dígito de verificación (el número después del guión)</div>
+    <div id="helperCedula" class="helper hidden">Ingresa el número de cédula sin puntos ni espacios</div>
+    <div id="errorDoc" class="error-text hidden"></div>
+
+    <div class="cliente-card" id="clienteCard">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap">
+        <div>
+          <div class="cliente-nombre" id="clienteNombre"></div>
+          <div class="cliente-ciudad" id="clienteCiudad"></div>
+          <span class="verificado hidden" id="badgeVerificado">✓ Verificado RUES</span>
+          <span class="manual-badge hidden" id="badgeManual">⚠️ Manual</span>
+        </div>
+      </div>
+      <div id="dirFiscal" style="font-size:12px;color:#64748B;margin-top:8px;display:none"></div>
+      <div id="camposManual" class="hidden" style="margin-top:12px">
+        <div class="field">
+          <label class="label" id="labelManual">Razón social de la empresa</label>
+          <input class="input" id="razonSocialInput" placeholder="Nombre de la empresa o persona">
+        </div>
+        <div class="field">
+          <label class="label">Ciudad</label>
+          <input class="input" id="ciudadInput" placeholder="Ciudad">
+        </div>
+      </div>
+    </div>
+
+    <div id="camposCliente" class="hidden" style="margin-top:20px">
+      <div class="grid2">
+        <div class="field">
+          <label class="label">Dirección de entrega *</label>
+          <input class="input" id="dirEntrega" placeholder="Calle / Carrera, número, barrio, ciudad">
+        </div>
+        <div class="field">
+          <label class="label">Teléfono de contacto *</label>
+          <input class="input" id="telefono" placeholder="Ej: 3001234567">
+        </div>
+        <div class="field">
+          <label class="label">Correo electrónico</label>
+          <input class="input" id="email" placeholder="compras@empresa.com">
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn-verde" onclick="irPaso2()" id="btnPaso2" disabled>Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- PASO 2 -->
+  <div id="paso2" class="card hidden">
+    <div class="sec-title">Selecciona los productos</div>
+    <div class="prod-grid" id="prodGrid"></div>
+    <div id="errorItems" class="error-text hidden">Agrega al menos un producto</div>
+
+    <div id="resumen" class="resumen hidden">
+      <div class="resumen-title">Resumen</div>
+      <div id="resumenItems"></div>
+      <div class="resumen-total">
+        <span>Total con IVA</span>
+        <span id="resumenTotal" style="color:var(--verde)"></span>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:20px">
+      <div class="field">
+        <label class="label">Fecha de entrega requerida *</label>
+        <input class="input" type="date" id="fechaEntrega">
+        <span style="font-size:11px;color:#94A3B8;margin-top:3px;display:block">⏱ Mínimo 4 días hábiles (lunes a viernes)</span>
+      </div>
+      <div class="field">
+        <label class="label">Observaciones</label>
+        <textarea class="input" id="observaciones" placeholder="Instrucciones especiales de entrega..."></textarea>
+      </div>
+    </div>
+    <div id="errorFecha" class="error-text hidden">Selecciona la fecha de entrega</div>
+
+    <div class="nav-row">
+      <button class="btn-outline" onclick="irPaso(1)">← Volver</button>
+      <button class="btn-verde" onclick="irPaso3()">Continuar →</button>
+    </div>
+  </div>
+
+  <!-- PASO 3 -->
+  <div id="paso3" class="card hidden">
+    <div class="sec-title">Confirma tu pedido</div>
+    <div class="confirm-grid">
+      <div class="confirm-card">
+        <div class="confirm-title">👤 Cliente</div>
+        <div id="confirmCliente"></div>
+      </div>
+      <div class="confirm-card">
+        <div class="confirm-title">📦 Productos</div>
+        <div id="confirmProductos"></div>
+      </div>
+    </div>
+    <div class="confirm-card" style="margin-bottom:16px">
+      <div class="confirm-title">🚚 Entrega</div>
+      <div id="confirmEntrega"></div>
+    </div>
+    <div class="aviso">ℹ️ Tu pedido quedará <strong>pendiente de aprobación</strong>. Un asesor de Paisamole SAS lo revisará y confirmará por correo o teléfono.</div>
+    <div class="nav-row">
+      <button class="btn-outline" onclick="irPaso(2)">← Volver</button>
+      <button class="btn-verde" onclick="enviarPedido()">✓ Enviar pedido</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="success" class="card success hidden">
+    <img src="https://raw.githubusercontent.com/mgallego21/paisamole-api/main/logo.png" class="success-logo">
+    <h2 class="success-title">¡Pedido recibido!</h2>
+    <p class="success-sub">Tu orden fue registrada y está pendiente de aprobación. Te contactaremos pronto.</p>
+    <div class="success-detail" id="successDetail"></div>
+    <button class="btn-verde" onclick="nuevoPedido()">Realizar otro pedido</button>
+  </div>
+</div>
+
+<script>
+const PRODUCTOS = [
+  {id:1,nombre:"Paisamole Picante",presentacion:"200gr",empaque:"Tarrina",precio:9411,iva:1788.09,total:11199.09,minimo:18,emoji:"🫙"},
+  {id:2,nombre:"Guacamole Paisamole",presentacion:"200gr",empaque:"Tarrina",precio:8800,iva:1672,total:10472,minimo:18,emoji:"🫙"},
+  {id:3,nombre:"Molego",presentacion:"200gr",empaque:"Tarrina",precio:4950,iva:940.50,total:5890.50,minimo:30,emoji:"🫙"},
+  {id:4,nombre:"Guacamole Paisamole",presentacion:"400gr",empaque:"Tarrina",precio:15246,iva:2896.74,total:18142.74,minimo:12,emoji:"🫙"},
+  {id:5,nombre:"Aguacate Chunki",presentacion:"1000gr",empaque:"Bolsa",precio:12500,iva:2375,total:14875,minimo:12,emoji:"🥑"}
+];
+
+const fmt = n => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(n);
+const fmtFecha = s => new Date(s+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
+const genId = () => 'PED-'+Date.now().toString().slice(-7);
+
+let tipoDoc = 'nit';
+let clienteData = null;
+let itemsSeleccionados = {};
+let paso = 1;
+
+// Tipo doc
+function setTipoDoc(tipo, btn) {
+  tipoDoc = tipo;
+  document.querySelectorAll('.doc-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('helperNit').classList.toggle('hidden', tipo !== 'nit');
+  document.getElementById('helperCedula').classList.toggle('hidden', tipo !== 'cedula');
+  document.getElementById('numDoc').placeholder = tipo === 'nit' ? 'Ej: 900.123.456 (sin dígito de verificación)' : 'Ej: 71.234.567';
+  resetCliente();
+}
+
+function resetCliente() {
+  clienteData = null;
+  document.getElementById('clienteCard').classList.remove('visible');
+  document.getElementById('camposCliente').classList.add('hidden');
+  document.getElementById('btnPaso2').disabled = true;
+  document.getElementById('errorDoc').classList.add('hidden');
+}
+
+// Consultar NIT
+async function consultarDoc() {
+  const num = document.getElementById('numDoc').value.trim();
+  if (!num) return;
+  const btn = document.getElementById('btnConsultar');
+  btn.innerHTML = '<span class="spinner">⏳</span> Consultando...';
+  btn.disabled = true;
+  document.getElementById('errorDoc').classList.add('hidden');
+
+  try {
+    if (tipoDoc === 'nit') {
+      const nit = num.replace(/[.\-\s]/g,'');
+      const resp = await fetch('https://paisamole-api.vercel.app/api/rues?nit='+nit);
+      const data = await resp.json();
+      if (data.ok) {
+        mostrarCliente(data.razonSocial, data.ciudad, data.direccion || '', false);
+      } else {
+        mostrarCliente('', '', '', true);
+      }
+    } else {
+      mostrarCliente('', '', '', true);
+    }
+  } catch(e) {
+    mostrarCliente('', '', '', true);
+  }
+
+  btn.innerHTML = '🔍 Consultar';
+  btn.disabled = false;
+}
+
+function mostrarCliente(razonSocial, ciudad, direccion, esManual) {
+  const card = document.getElementById('clienteCard');
+  card.classList.add('visible');
+  document.getElementById('clienteNombre').textContent = razonSocial || '';
+  document.getElementById('clienteCiudad').textContent = ciudad || '';
+  document.getElementById('badgeVerificado').classList.toggle('hidden', esManual);
+  document.getElementById('badgeManual').classList.toggle('hidden', !esManual);
+  document.getElementById('camposManual').classList.toggle('hidden', !esManual);
+  const labelManual = document.getElementById('labelManual');
+  labelManual.textContent = tipoDoc === 'nit' ? 'Razón social de la empresa' : 'Nombre completo';
+  if (direccion) {
+    const df = document.getElementById('dirFiscal');
+    df.textContent = '📍 Dirección fiscal: ' + direccion;
+    df.style.display = 'block';
+  }
+  document.getElementById('camposCliente').classList.remove('hidden');
+  clienteData = {razonSocial, ciudad, direccion, esManual};
+  document.getElementById('btnPaso2').disabled = false;
+}
+
+// Paso 2 - productos
+function renderProductos() {
+  const grid = document.getElementById('prodGrid');
+  grid.innerHTML = PRODUCTOS.map(p => {
+    const sel = itemsSeleccionados[p.id];
+    return `<div class="prod-card ${sel ? 'selected' : ''}" id="pc${p.id}">
+      <div class="prod-emoji">${p.emoji}</div>
+      <div class="prod-nombre">${p.nombre}</div>
+      <div class="prod-pres">${p.presentacion} · ${p.empaque}</div>
+      <div class="prod-precio">${fmt(p.total)} <span style="font-size:10px;font-weight:400;color:#94A3B8">c/IVA</span></div>
+      <div class="prod-min">Mín. ${p.minimo} und</div>
+      ${sel ? `
+        <div class="prod-qty">
+          <button class="qty-btn" onclick="cambiarCantidad(${p.id},-1)">−</button>
+          <input class="qty-input" type="number" value="${sel.cantidad}" min="${p.minimo}" onchange="setCantidad(${p.id},this.value)">
+          <button class="qty-btn" onclick="cambiarCantidad(${p.id},1)">+</button>
+          <button style="margin-left:auto;background:#FEE2E2;border:none;color:#EF4444;border-radius:6px;width:28px;height:28px;cursor:pointer;font-weight:700" onclick="quitarProd(${p.id})">✕</button>
+        </div>
+      ` : `<button class="add-btn" onclick="agregarProd(${p.id})">+ Agregar</button>`}
+    </div>`;
+  }).join('');
+  actualizarResumen();
+}
+
+function agregarProd(id) {
+  const p = PRODUCTOS.find(x=>x.id===id);
+  itemsSeleccionados[id] = {...p, cantidad: p.minimo};
+  renderProductos();
+}
+function quitarProd(id) {
+  delete itemsSeleccionados[id];
+  renderProductos();
+}
+function cambiarCantidad(id, delta) {
+  const p = PRODUCTOS.find(x=>x.id===id);
+  itemsSeleccionados[id].cantidad = Math.max(p.minimo, itemsSeleccionados[id].cantidad + delta);
+  renderProductos();
+}
+function setCantidad(id, val) {
+  const p = PRODUCTOS.find(x=>x.id===id);
+  itemsSeleccionados[id].cantidad = Math.max(p.minimo, parseInt(val)||p.minimo);
+  renderProductos();
+}
+
+function actualizarResumen() {
+  const items = Object.values(itemsSeleccionados);
+  const res = document.getElementById('resumen');
+  if (items.length === 0) { res.classList.add('hidden'); return; }
+  res.classList.remove('hidden');
+  const total = items.reduce((a,i)=>a+i.total*i.cantidad,0);
+  document.getElementById('resumenItems').innerHTML = items.map(i=>
+    `<div class="resumen-row"><span>${i.cantidad}× ${i.nombre} ${i.presentacion}</span><span>${fmt(i.total*i.cantidad)}</span></div>`
+  ).join('');
+  document.getElementById('resumenTotal').textContent = fmt(total);
+}
+
+// Fecha mínima 4 días hábiles
+function calcFechaMin() {
+  let d = new Date(), habiles = 0;
+  while(habiles < 4) {
+    d.setDate(d.getDate()+1);
+    if(d.getDay()!==0 && d.getDay()!==6) habiles++;
+  }
+  return d.toISOString().split('T')[0];
+}
+
+// Navegación
+function irPaso2() {
+  const rs = document.getElementById('razonSocialInput').value.trim();
+  const ciudad = document.getElementById('ciudadInput').value.trim();
+  if (clienteData && clienteData.esManual && (!rs || !ciudad)) {
+    showError('errorDoc','Ingresa la razón social y ciudad');
+    return;
+  }
+  if (clienteData && clienteData.esManual) {
+    clienteData.razonSocial = rs;
+    clienteData.ciudad = ciudad;
+    document.getElementById('clienteNombre').textContent = rs;
+    document.getElementById('clienteCiudad').textContent = ciudad;
+  }
+  if (!document.getElementById('dirEntrega').value.trim()) {
+    showError('errorDoc','Ingresa la dirección de entrega');
+    return;
+  }
+  if (!document.getElementById('telefono').value.trim()) {
+    showError('errorDoc','Ingresa el teléfono de contacto');
+    return;
+  }
+  irPaso(2);
+  renderProductos();
+  document.getElementById('fechaEntrega').min = calcFechaMin();
+}
+
+function irPaso3() {
+  const items = Object.values(itemsSeleccionados);
+  if (items.length === 0) { document.getElementById('errorItems').classList.remove('hidden'); return; }
+  document.getElementById('errorItems').classList.add('hidden');
+  if (!document.getElementById('fechaEntrega').value) {
+    document.getElementById('errorFecha').classList.remove('hidden'); return;
+  }
+  document.getElementById('errorFecha').classList.add('hidden');
+  renderConfirm();
+  irPaso(3);
+}
+
+function renderConfirm() {
+  const items = Object.values(itemsSeleccionados);
+  const subtotal = items.reduce((a,i)=>a+i.precio*i.cantidad,0);
+  const iva = items.reduce((a,i)=>a+i.iva*i.cantidad,0);
+  const total = subtotal+iva;
+
+  document.getElementById('confirmCliente').innerHTML = `
+    <div class="confirm-row"><span>Razón social</span><strong>${clienteData.razonSocial}</strong></div>
+    <div class="confirm-row"><span>${tipoDoc==='nit'?'NIT':'Cédula'}</span><strong>${document.getElementById('numDoc').value}</strong></div>
+    <div class="confirm-row"><span>Ciudad</span><strong>${clienteData.ciudad}</strong></div>
+    <div class="confirm-row"><span>Dir. entrega</span><strong>${document.getElementById('dirEntrega').value}</strong></div>
+    <div class="confirm-row"><span>Teléfono</span><strong>${document.getElementById('telefono').value}</strong></div>
+  `;
+  document.getElementById('confirmProductos').innerHTML = items.map(i=>
+    `<div class="confirm-row"><span>${i.cantidad}× ${i.nombre} ${i.presentacion}</span><strong>${fmt(i.total*i.cantidad)}</strong></div>`
+  ).join('') + `
+    <div class="confirm-row" style="font-weight:700;font-size:15px;border-top:1px solid #E2E8F0;padding-top:8px;margin-top:4px">
+      <span>Total c/IVA</span><strong style="color:var(--verde)">${fmt(total)}</strong>
+    </div>`;
+  document.getElementById('confirmEntrega').innerHTML = `
+    <div class="confirm-row"><span>Fecha solicitada</span><strong>${fmtFecha(document.getElementById('fechaEntrega').value)}</strong></div>
+    ${document.getElementById('observaciones').value ? `<div class="confirm-row"><span>Observaciones</span><strong>${document.getElementById('observaciones').value}</strong></div>` : ''}
+  `;
+}
+
+function irPaso(n) {
+  paso = n;
+  ['paso1','paso2','paso3','success'].forEach((id,i) => {
+    document.getElementById(id).classList.toggle('hidden', i+1 !== n);
+  });
+  [1,2,3].forEach(i => {
+    const sc = document.getElementById('sc'+i);
+    const sl = document.getElementById('sl'+i);
+    const line = document.getElementById('line'+i);
+    if(i < n){sc.className='step-circle done';sc.textContent='✓';if(line)line.classList.add('done');}
+    else if(i===n){sc.className='step-circle active';sc.textContent=i;sl.className='step-label active';}
+    else{sc.className='step-circle';sc.textContent=i;sl.className='step-label';if(line)line.classList.remove('done');}
+  });
+}
+
+async function enviarPedido() {
+  const items = Object.values(itemsSeleccionados);
+  const pedido = {
+    id: genId(),
+    estado: 'pendiente',
+    creado: new Date().toISOString(),
+    cliente: {
+      tipo: tipoDoc,
+      doc: document.getElementById('numDoc').value,
+      razonSocial: clienteData.razonSocial,
+      ciudad: clienteData.ciudad,
+      direccionEntrega: document.getElementById('dirEntrega').value,
+      telefono: document.getElementById('telefono').value,
+      email: document.getElementById('email').value,
+    },
+    items,
+    fechaEntrega: document.getElementById('fechaEntrega').value,
+    observaciones: document.getElementById('observaciones').value,
+  };
+
+  // Guardar en localStorage para el panel
+  const pedidos = JSON.parse(localStorage.getItem('paisamole_pedidos')||'[]');
+  pedidos.unshift(pedido);
+  localStorage.setItem('paisamole_pedidos', JSON.stringify(pedidos));
+
+  // Mostrar éxito
+  const total = items.reduce((a,i)=>a+i.total*i.cantidad,0);
+  document.getElementById('successDetail').innerHTML = `
+    <div class="success-row"><span>Pedido</span><strong>${pedido.id}</strong></div>
+    <div class="success-row"><span>Cliente</span><strong>${pedido.cliente.razonSocial}</strong></div>
+    <div class="success-row"><span>Entrega solicitada</span><strong>${fmtFecha(pedido.fechaEntrega)}</strong></div>
+    <div class="success-row"><span>Total estimado</span><strong style="color:var(--verde)">${fmt(total)}</strong></div>
+  `;
+  ['paso1','paso2','paso3'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('success').classList.remove('hidden');
+  document.querySelector('.stepper').style.display = 'none';
+}
+
+function nuevoPedido() {
+  itemsSeleccionados = {};
+  clienteData = null;
+  document.getElementById('numDoc').value = '';
+  document.getElementById('dirEntrega').value = '';
+  document.getElementById('telefono').value = '';
+  document.getElementById('email').value = '';
+  document.getElementById('observaciones').value = '';
+  document.getElementById('fechaEntrega').value = '';
+  document.getElementById('clienteCard').classList.remove('visible');
+  document.getElementById('camposCliente').classList.add('hidden');
+  document.getElementById('btnPaso2').disabled = true;
+  document.querySelector('.stepper').style.display = 'flex';
+  irPaso(1);
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// Enter en el input de NIT
+document.getElementById('numDoc').addEventListener('keydown', e => {
+  if(e.key==='Enter') consultarDoc();
+});
+</script>
+</body>
+</html>
