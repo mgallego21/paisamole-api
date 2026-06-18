@@ -459,7 +459,36 @@ function fileToBase64(file) {
   });
 }
 
-function mostrarExtracted(data) {
+// Store all extracted orders
+window._ordenesExtraidas = [];
+window._ordenActual = 0;
+
+function mostrarMultiplesOrdenes(ordenes) {
+  window._ordenesExtraidas = ordenes;
+  window._ordenActual = 0;
+  
+  if (ordenes.length > 1) {
+    // Show multi-order header
+    document.getElementById('multiOrdenHeader').style.display = 'flex';
+    document.getElementById('multiOrdenCount').textContent = `${ordenes.length} órdenes detectadas`;
+  } else {
+    document.getElementById('multiOrdenHeader').style.display = 'none';
+  }
+  
+  mostrarOrden(0);
+}
+
+function mostrarOrden(idx) {
+  const data = window._ordenesExtraidas[idx];
+  if (!data) return;
+  window._ordenActual = idx;
+  
+  const total = window._ordenesExtraidas.length;
+  document.getElementById('ordenNavInfo').textContent = total > 1 ? `Orden ${idx+1} de ${total}` : '';
+  document.getElementById('btnOrdenPrev').style.display = total > 1 && idx > 0 ? 'inline-block' : 'none';
+  document.getElementById('btnOrdenNext').style.display = total > 1 && idx < total-1 ? 'inline-block' : 'none';
+  document.getElementById('btnConfirmarTodas').style.display = total > 1 ? 'inline-block' : 'none';
+  
   document.getElementById('ex-razonSocial').value = data.razonSocial||'';
   document.getElementById('ex-nit').value = data.nit||'';
   document.getElementById('ex-ciudad').value = data.ciudad||'';
@@ -487,7 +516,69 @@ function mostrarExtracted(data) {
   document.getElementById('extractedCard').style.display = 'block';
 }
 
+function guardarOrdenActual() {
+  const idx = window._ordenActual;
+  window._ordenesExtraidas[idx] = {
+    ...window._ordenesExtraidas[idx],
+    razonSocial: document.getElementById('ex-razonSocial').value,
+    nit: document.getElementById('ex-nit').value,
+    ciudad: document.getElementById('ex-ciudad').value,
+    direccionEntrega: document.getElementById('ex-direccion').value,
+    telefono: document.getElementById('ex-telefono').value,
+    email: document.getElementById('ex-email').value,
+    numerOrden: document.getElementById('ex-numOrden').value,
+    fechaEntrega: document.getElementById('ex-fecha').value,
+    observaciones: document.getElementById('ex-obs').value,
+    items: Array.from({length: window._exItemCount}, (_,i) => {
+      const sel = document.getElementById('exsel'+i);
+      const qty = document.getElementById('exqty'+i);
+      return sel && sel.value ? {productoId: sel.value, cantidad: parseInt(qty.value)||0, nombreOriginal: window._ordenesExtraidas[idx].items[i]?.nombreOriginal||''} : null;
+    }).filter(Boolean)
+  };
+}
+
+function navegarOrden(dir) {
+  guardarOrdenActual();
+  mostrarOrden(window._ordenActual + dir);
+}
+
+function confirmarPedidoDesdeOrden(data) {
+  const items = (data.items||[]).map(item => {
+    if (!item.productoId) return null;
+    const prod = PRODUCTOS.find(p=>p.id==item.productoId);
+    return prod ? {...prod, cantidad: parseInt(item.cantidad)||prod.minimo} : null;
+  }).filter(Boolean);
+  if (items.length === 0) return null;
+  return {
+    id: genId(),
+    estado: 'pendiente',
+    creado: new Date().toISOString(),
+    fuente: 'pdf',
+    numerOrden: data.numerOrden||'',
+    cliente: {
+      tipo:'nit', doc: data.nit||'',
+      razonSocial: data.razonSocial||'',
+      ciudad: data.ciudad||'',
+      direccionEntrega: data.direccionEntrega||'',
+      telefono: data.telefono||'',
+      email: data.email||'',
+    },
+    items,
+    fechaEntrega: data.fechaEntrega||'',
+    observaciones: data.observaciones||'',
+  };
+}
+
+function mostrarExtracted(data) {
+  mostrarMultiplesOrdenes([data]);
+}
+
 function confirmarImport() {
+  // Save current edits
+  guardarOrdenActual();
+  
+  // Build pedido from current order
+  const data = window._ordenesExtraidas[window._ordenActual];
   const items = [];
   for(let i=0;i<(window._exItemCount||0);i++) {
     const selEl = document.getElementById('exsel'+i);
@@ -503,32 +594,62 @@ function confirmarImport() {
     return;
   }
   const pedido = {
-    id: genId(),
-    estado: 'pendiente',
-    creado: new Date().toISOString(),
-    fuente: 'pdf',
+    id: genId(), estado: 'pendiente', creado: new Date().toISOString(), fuente: 'pdf',
     numerOrden: document.getElementById('ex-numOrden').value,
     cliente: {
-      tipo:'nit',
-      doc: document.getElementById('ex-nit').value,
+      tipo:'nit', doc: document.getElementById('ex-nit').value,
       razonSocial: document.getElementById('ex-razonSocial').value,
       ciudad: document.getElementById('ex-ciudad').value,
       direccionEntrega: document.getElementById('ex-direccion').value,
       telefono: document.getElementById('ex-telefono').value,
       email: document.getElementById('ex-email').value,
     },
-    items,
-    fechaEntrega: document.getElementById('ex-fecha').value,
+    items, fechaEntrega: document.getElementById('ex-fecha').value,
     observaciones: document.getElementById('ex-obs').value,
   };
   pedidos.unshift(pedido);
+  guardarPedidos();
+  
+  const total = window._ordenesExtraidas.length;
+  const siguiente = window._ordenActual + 1;
+  
+  if (siguiente < total) {
+    // Move to next order
+    mostrarOrden(siguiente);
+    document.getElementById('ex-error').style.display='none';
+    // Show success toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#3B6E22;color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;z-index:9999;font-size:13px';
+    toast.textContent = `✅ Orden ${pedido.numerOrden} ingresada (${siguiente} de ${total})`;
+    document.body.appendChild(toast);
+    setTimeout(()=>toast.remove(), 3000);
+  } else {
+    // All done
+    cancelarImport();
+    setSubTab('pedidos', document.querySelector('.sub-tab'));
+    document.querySelectorAll('.sub-tab')[0].classList.add('active');
+    document.querySelectorAll('.sub-tab')[1].classList.remove('active');
+    renderTabla(); renderKPIs(); renderFiltros();
+    alert('✅ ' + total + ' pedido' + (total>1?'s':'') + ' importado' + (total>1?'s':'') + ' correctamente.');
+  }
+}
+
+function confirmarTodasLasOrdenes() {
+  guardarOrdenActual();
+  let importados = 0;
+  let errores = 0;
+  window._ordenesExtraidas.forEach(data => {
+    const pedido = confirmarPedidoDesdeOrden(data);
+    if (pedido) { pedidos.unshift(pedido); importados++; }
+    else errores++;
+  });
   guardarPedidos();
   cancelarImport();
   setSubTab('pedidos', document.querySelector('.sub-tab'));
   document.querySelectorAll('.sub-tab')[0].classList.add('active');
   document.querySelectorAll('.sub-tab')[1].classList.remove('active');
   renderTabla(); renderKPIs(); renderFiltros();
-  alert('✅ Pedido importado correctamente: '+pedido.id);
+  alert('✅ ' + importados + ' pedidos importados.' + (errores>0?' '+errores+' no pudieron importarse.':''));
 }
 
 function cancelarImport() {
